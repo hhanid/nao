@@ -5,7 +5,7 @@ description: Generate a test suite of natural-language → SQL pairs that become
 
 # create-context-tests
 
-`nao test` runs natural-language questions through the agent, runs the expected SQL against the warehouse, and reports whether they match. The suite is the reliability benchmark — every change to `RULES.md` is measured against it. Reference: [docs.getnao.io/nao-agent/context-engineering/evaluation](https://docs.getnao.io/nao-agent/context-engineering/evaluation).
+`nao test` runs each natural-language prompt through the agent, executes both the agent's SQL and the test's expected SQL against the warehouse, and **diffs the result data row-by-row**. A test passes only if the actual data matches — same rows, same values. The suite is the reliability benchmark; every change to `RULES.md` is measured against it. Reference: [docs.getnao.io/nao-agent/context-engineering/evaluation](https://docs.getnao.io/nao-agent/context-engineering/evaluation).
 
 ## How many tests
 

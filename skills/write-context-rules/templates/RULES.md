@@ -4,50 +4,45 @@
 
 ## Business overview
 
-**Product**: TODO: one-paragraph description of what the company does, and key product features
+**Product**: TODO — one paragraph: what the company does + key product features.
 
-**Business model**: TODO: one-paragraph description of revenue structure and customer journey
+**Business model**: TODO — one paragraph: revenue structure + customer journey.
 
 ## Data architecture
 
-**Warehouse:** TODO. (ex: BigQuery (`nao-production`))
-**Data stack:** TODO. (ex: dlt, dbt, no semantic layer)
-**Data layers:** TODO: describe data layers (ex bronze / silver / gold)
+**Warehouse:** TODO (e.g. `BigQuery (nao-production)`)
+**Data stack:** TODO (e.g. `dlt, dbt, no semantic layer`)
+**Data layers:** TODO (e.g. `bronze / silver / gold`)
 
 **Data sources:**
 
-- TODO
-  Ex:
-
-1. **App Backend** (`stg_app_backend__*`): data from our app backend with users, events
+1. TODO — e.g. `**App Backend** (\`stg_app_backend\_\_\*\`): users, events`
 
 ## Core data models
 
 ### Most Used Tables
 
-- `<table>` — TODO: one-line purpose. See `databases/type=*/database=*/schema=*/table=table/` folder.
+- `<table>` — TODO: one-line purpose. See `databases/.../table=<table>/`.
 
 ### Tables detail
 
-#### `table`
+#### `<table>`
 
-**Purpose**: TODO: description
-**Granularity**: TODO: One row per **granularity**.
-**Key Columns**:
+**Purpose**: TODO
+**Granularity**: One row per TODO.
+**Key Columns** (cap at 10 — full schema in `databases/<table>.md`):
 
-- `col`: TODO: col desc and/or possible values - only for max top 10 most important cols of the table
+- `<col>`: TODO
 
-**Use For**: TODO: use case where table can be relevant (which topic, metric)
+**Use For**: TODO — which topics / metrics / question categories.
 
 ## Key Metrics Reference
 
-> Source-of-truth pointer per metric. Detailed semantics live in `semantics/<metric>.yaml` if a semantic layer is configured.
+> Source-of-truth pointer per metric. Detailed semantics live in `semantics/semantic.yaml` if a semantic layer is configured.
 
-**For each key metric, always use the following source-of-truth table:**
+### TODO: Metric category (e.g. Revenue)
 
-### Metric category 1 (ex: Revenue)
-
-- **metric name** → `table`, column and formula
+- **<metric>** → `<table>.<column>`, `<formula>`
 
 ## Date filtering
 
@@ -74,28 +69,9 @@ TODO
 
 ## Analysis Process
 
-### 1. Understand the Question
-
-- Identify the metric or insight requested
-- Determine the time period
-- Identify user segments or filters needed
-
-### 2. Select the Right Table(s)
-
-- **Question category** → Start with `table`
-
-### 3. Write Efficient Queries
-
-- Filter early and often (WHERE clauses on dates, user_id, etc.)
-- Aggregate before joining when possible
-- Use CTEs for complex queries to improve readability
-
-### 4. Validate Results
-
-- Check for NULL values in key fields
-- Verify counts make sense (e.g., user counts shouldn't exceed total users)
-
-### 5. Provide Context
-
-- Explain what the numbers mean for the business
-- Highlight trends, anomalies, or notable patterns
+1. **Understand the question** — identify the metric, time period, user segments / filters.
+2. **Select the right table(s)** — start from `## Core data models`. Map question category to table:
+    - TODO: e.g. revenue → `fct_stripe_mrr`, activity → `fct_users_activity_daily`.
+3. **Write efficient queries** — filter early (WHERE on dates / IDs), aggregate before joining, CTEs for complex logic.
+4. **Validate** — NULL checks on key fields, sanity-check counts (e.g. user counts ≤ total users).
+5. **Provide context** — explain what the numbers mean, flag trends / anomalies.
