@@ -125,7 +125,7 @@ For Snowflake's native semantic views (Cortex Analyst), use the Cortex MCP varia
 ## Path C — Other (semantic layer with no obvious MCP)
 
 1. **Search for an existing MCP** that fits the user's tool. Check the MCP registry, the tool's own docs, and the user's installed MCPs.
-2. **If a fit exists**: install it, configure credentials following the pattern from paths A-C (config block in `.claude/mcp.json`, secrets in shell env, restart, test, update `RULES.md` to route through MCP).
+2. **If a fit exists**: install it, configure credentials following the pattern from paths A-B (config block in `.claude/mcp.json`, secrets in shell env, restart, test, update `RULES.md` to route through MCP).
 3. **If no fit exists**: tell the user honestly. Recommend one of:
     - Falling back to **Path D** (nao semantic files) as a stopgap.
     - Building a thin MCP wrapper themselves.

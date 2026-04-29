@@ -18,6 +18,15 @@ dimensions:
       type: categorical
       description: User's billing country (ISO 3166-1 alpha-2).
 
+    - name: signup_week
+      type: date
+      description: ISO week of the user's signup. Used by cohort-based metrics.
+
+    - name: acquisition_channel
+      type: categorical
+      description: How the user first reached the product.
+      values: [organic, paid_search, paid_social, referral, direct, other]
+
     # Add one block per project dimension.
 
 metrics:

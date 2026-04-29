@@ -35,7 +35,7 @@ class RegistryEntry:
     def from_dict(cls, registry_base: str, d: dict) -> RegistryEntry:
         url = d["tarball_url"]
         if not url.startswith("http"):
-            url = registry_base.rstrip("/") + url
+            url = f"{registry_base.rstrip('/')}/{url.lstrip('/')}"
         return cls(
             name=d["name"],
             description=d["description"],
@@ -84,18 +84,41 @@ def _install_one(entry: RegistryEntry) -> None:
     UI.print(f"  downloading {entry.tarball_url}")
     raw = _fetch(entry.tarball_url)
 
-    if entry.sha256:
-        actual = hashlib.sha256(raw).hexdigest()
-        if actual != entry.sha256:
-            UI.error(f"  checksum mismatch for {entry.name}: expected {entry.sha256}, got {actual}")
-            raise SystemExit(1)
+    # SHA-256 is mandatory. Without it we'd be extracting an unauthenticated
+    # tarball into the user's project — refuse rather than fall back.
+    if not entry.sha256:
+        UI.error(f"  registry entry for {entry.name} is missing sha256; refusing to install.")
+        raise SystemExit(1)
+    actual = hashlib.sha256(raw).hexdigest()
+    if actual != entry.sha256:
+        UI.error(f"  checksum mismatch for {entry.name}: expected {entry.sha256}, got {actual}")
+        raise SystemExit(1)
 
     if target.exists():
         shutil.rmtree(target)
 
     SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+    skills_root = SKILLS_DIR.resolve()
     with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as tar:
-        tar.extractall(SKILLS_DIR)  # noqa: S202 — checksum verified above
+        # Validate every member resolves inside SKILLS_DIR before extracting.
+        # Defends against path-traversal (../../etc/passwd) and absolute paths
+        # in the archive — an attacker who compromised the registry but not
+        # our SHA-256 verification still can't escape the install dir.
+        for member in tar.getmembers():
+            member_path = (skills_root / member.name).resolve()
+            try:
+                member_path.relative_to(skills_root)
+            except ValueError as e:
+                UI.error(f"  unsafe member path in {entry.name} tarball: {member.name}")
+                raise SystemExit(1) from e
+            if member.issym() or member.islnk():
+                link_target = (member_path.parent / member.linkname).resolve()
+                try:
+                    link_target.relative_to(skills_root)
+                except ValueError as e:
+                    UI.error(f"  unsafe symlink in {entry.name} tarball: {member.name} -> {member.linkname}")
+                    raise SystemExit(1) from e
+        tar.extractall(SKILLS_DIR)  # noqa: S202 — members validated above
 
     lock = _load_lock()
     lock["installed"][entry.name] = {
@@ -113,7 +136,14 @@ def skills(
     *,
     update: Annotated[
         bool,
-        Parameter(name="--update", help="Refresh skills whose registry checksum has drifted from the local copy."),
+        Parameter(
+            name="--update",
+            help=(
+                "Refresh skills whose registry checksum has drifted from the local copy. "
+                "Overwrites any local edits to those skills without warning — drift detection "
+                "is registry-side only and does not check installed files."
+            ),
+        ),
     ] = False,
     force: Annotated[
         bool,
@@ -128,6 +158,12 @@ def skills(
 
     Pass --update to refresh drifted skills to the latest registry version.
     Pass --force to reinstall everything regardless of state.
+
+    Note on local edits: drift detection compares the registry checksum to the
+    one recorded at install time, not to the actual files on disk. If you
+    edited an installed skill locally, --update will overwrite your edits
+    without warning whenever the registry version also changed. If you want
+    to keep local edits, copy them out first or skip --update for that skill.
     """
     UI.title("nao skills")
     registry = _load_registry()

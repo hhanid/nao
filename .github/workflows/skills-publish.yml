@@ -8,10 +8,18 @@ on:
             - 'skills/**'
             - 'scripts/build_skills_registry.py'
             - '.github/workflows/skills-publish.yml'
+    pull_request:
+        paths:
+            - 'skills/**'
+            - 'scripts/build_skills_registry.py'
+            - '.github/workflows/skills-publish.yml'
     workflow_dispatch: # allow manual runs
 
 jobs:
     validate-and-publish:
+        # Build + deploy only on push to main / manual runs. PRs go through
+        # the validate-only job below.
+        if: github.event_name != 'pull_request'
         runs-on: ubuntu-latest
         permissions:
             contents: read

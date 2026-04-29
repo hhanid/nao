@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import hashlib
+import html
 import json
 import shutil
 import sys
@@ -108,9 +109,9 @@ def package_skill(skill: Skill, out_dir: Path) -> tuple[Path, str]:
 def render_index_html(skills: list[Skill], version: str, updated_at: str) -> str:
     rows = "\n".join(
         f"""        <tr>
-          <td><code>{s.name}</code></td>
-          <td>{s.description}</td>
-          <td><a href="skills/{s.name}/manifest.json">manifest</a> · <a href="skills/{s.name}/{s.name}.tar.gz">tarball</a></td>
+          <td><code>{html.escape(s.name)}</code></td>
+          <td>{html.escape(s.description)}</td>
+          <td><a href="skills/{html.escape(s.name, quote=True)}/manifest.json">manifest</a> · <a href="skills/{html.escape(s.name, quote=True)}/{html.escape(s.name, quote=True)}.tar.gz">tarball</a></td>
         </tr>"""
         for s in skills
     )
