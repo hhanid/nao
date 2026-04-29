@@ -1,133 +1,160 @@
 ---
 name: setup-context
-description: Bootstrap a nao agent for a project — configure the warehouse, define the data scope, run nao init + nao sync, and generate the first RULES.md from the synced files. Use when the user has just decided to use nao on a new project. Only for first-time setup; for editing rules, generating tests, or reviewing an existing context, use write-context-rules / create-context-tests / audit-context.
+description: Bootstrap a nao agent for a project — gather warehouse + scope + extra-context info in one round of questions, run nao init + nao sync with sensible defaults, set up the LLM key, and generate the first RULES.md from the synced files. Use when the user has just decided to use nao on a new project. Only for first-time setup; for editing rules, generating tests, or reviewing an existing context, use write-context-rules / create-context-tests / audit-context.
 ---
 
 # setup-context
 
-Walk the user from "I just installed nao" to "I have a synced project with a first `RULES.md` I can iterate on." Output: a working `nao_config.yaml`, a successful `nao sync`, and a starter `RULES.md`.
+Walk the user from "I just installed nao" to "I have a synced project with a first `RULES.md`". Output: a working `nao_config.yaml`, a successful `nao sync`, an LLM key wired in, and a starter `RULES.md`.
 
-The core constraint everywhere: **≤20 tables for the first POC.** Reliability collapses past that, and iteration slows down. Stay small.
+**Be brief.** Limit elicitation to **one batch of questions**. Then act on the answers and only come back if something is genuinely blocking.
 
-## Step 1 — Configure the warehouse
+Scope guidance: **keep it under 100 tables** for the first POC. Above 100, `nao sync` gets slow and the agent's reliability drops because the per-table context budget gets thin. 20 is a great starting size, but the hard concern is the 100-table ceiling, not the 20-table floor.
 
-Ask:
+## Step 1 — Ask everything you need, in one round
 
-- Which warehouse? (BigQuery / Snowflake / Postgres / Redshift / DuckDB / etc.)
-- How will nao authenticate? (service account JSON, env vars, OAuth, key pair, etc.)
-- Confirm the user has read access for that auth.
+Send a single message asking for:
 
-Capture all of this — it goes into `nao_config.yaml` in step 4.
+1. **Warehouse + auth** — type (BigQuery / Snowflake / Postgres / Redshift / DuckDB), project + dataset/schema, and how nao should authenticate (service-account JSON path, env vars, OAuth, key pair).
+2. **Scope** — which tables go in. Two valid shapes:
+    - **Broad** — gold/marts across multiple domains (best for exec / cross-functional agents).
+    - **Deep** — silver + gold for one domain (best for a team-specific agent).
+3. **Extra context to import** — dbt repo, ETL repo, BI repo, Notion workspace, internal docs / glossaries. **For each one, ask for the name** (not the path) — you'll resolve the path yourself.
+4. **LLM** — which model the agent should use (Anthropic / OpenAI / Bedrock / etc.). The key itself comes later (Step 5).
 
-## Step 2 — Define the data scope
+Once you have the answers, proceed. **Don't ping-pong** — make reasonable defaults for anything not specified and flag them in the output rather than asking again.
 
-Ask:
+### Resolving repo names yourself
 
-- Which project / dataset / schema(s)?
-- Which tables go in scope?
+If the user gave a repo **name** (e.g. `my-dbt-project`):
 
-There are two valid shapes for a first POC, both capped at 20 tables. Recommend one based on what the user is trying to do:
+- Try `gh repo view <user>/<name>` and `gh repo view <org>/<name>` to find it on GitHub.
+- Check common local paths: `~/Projects/<name>`, `~/code/<name>`, `~/dev/<name>`, the parent directory of the current project.
+- Prefer a local clone if one exists. Otherwise use the git URL — `nao sync` will clone it.
 
-| Strategy  | Shape                                                          | Recommend when                                                                                          |
-| --------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| **Broad** | All tables of `gold` / marts, across multiple domains.         | The agent serves execs / CEO / cross-functional questions. Breadth matters more than depth.             |
-| **Deep**  | Tables of `silver` + `gold` for **one** domain (e.g. finance). | The agent serves a specific team with deep, domain-specific questions. Depth matters more than breadth. |
+Only ask the user for the path if both methods fail.
 
-Pick one. Mixing (e.g. "silver + gold across all domains") blows the 20-table budget and degrades quality.
+## Step 2 — Generate `nao_config.yaml` and run `nao init`
 
-The goal is **every table in scope has proper context** — better to have 12 well-documented tables than 20 half-documented ones.
+You already know what `nao init` does (it's documented below). Don't run it first to "see what it asks" — generate the config and run init non-interactively.
 
-## Step 3 — Identify extra context to import
+Approach:
 
-Ask about **each** of these — most users have at least one:
+1. **Write `nao_config.yaml`** from the user's answers using the structure in the appendix below.
+2. **Run `nao init`** — it detects the existing yaml and offers to update; confirm. The folder scaffold gets created.
+3. Don't waste a turn answering "yes" to optional providers (skills / MCPs / Notion / Slack) — say "no" to all and edit the yaml directly afterwards if anything was missed.
+4. Show the user the generated `nao_config.yaml` and the folder tree.
 
-- **Existing git repos** that document the data:
-    - dbt project (`schema.yml`, docs blocks, semantic models / MetricFlow).
-    - ETL / ingestion pipelines (Airbyte, Fivetran configs, custom loaders).
-    - Semantic layer (Cube, dbt semantic, LookML).
-    - BI repo (Looker views, Metabase, Hex notebooks).
-- **Existing skills** they want to import (e.g. a custom skill from another project, a published nao skill).
-- **Internal docs**: glossaries, runbooks, Notion workspace, README files describing the data.
+### Database `templates` defaults
 
-For each one, capture the local path, git URL, or Notion workspace ID. These will be referenced from `nao_config.yaml` so `nao sync` pulls them into context.
+Each database in `nao_config.yaml` takes a `templates` list — what gets rendered per table during sync. The default is:
 
-## Step 4 — Install nao-core and run `nao init`
-
-```bash
-pip install nao-core
-nao init
+```yaml
+templates: [columns, how_to_use, preview]
 ```
 
-`nao init` is interactive. It walks the user through configuring databases, LLM, and optional providers (skills, MCPs, Notion, Slack, repos) — feed it the answers from steps 1-3. It then writes `nao_config.yaml` and scaffolds the project folder structure.
+Available templates: `columns`, `preview`, `profiling`, `ai_summary`, `how_to_use`.
+
+**Don't use `accessors` — it's deprecated** (renamed to `templates`). If you see `accessors` in an older config, rename it.
 
 ### What `nao init` creates
 
 ```
 <project>/
-├── nao_config.yaml      # the configuration written from your prompts
-├── RULES.md             # empty — populated in step 6
-├── .naoignore           # ignore patterns (templates/, *.j2, tests/)
-│
-├── databases/           # nao sync writes per-table schema, preview rows, profiling here
-├── repos/               # nao sync clones / pulls every configured external repo here
-├── docs/                # nao sync writes synced documentation here (e.g. Notion)
-├── semantics/           # YAML semantic-layer files (used by add-semantic-layer)
+├── nao_config.yaml
+├── RULES.md             # empty, populated in step 4
+├── .naoignore
+├── databases/           # nao sync writes per-table schema, preview, etc.
+├── repos/               # nao sync clones synced git repos here
+├── docs/                # synced docs (Notion etc.)
+├── semantics/           # YAML semantic-layer files
 ├── queries/             # saved queries
-├── tests/               # test suite (used by create-context-tests)
-└── agent/
-    ├── tools/           # custom tools the agent can call
-    ├── mcps/            # MCP server configs
-    └── skills/          # project-specific skills
+├── tests/               # test suite
+└── agent/{tools,mcps,skills}/
 ```
 
-Confirm the structure exists before moving to `nao sync`. Then optionally run `nao debug` to verify connectivity to the warehouse and LLM before syncing.
-
-## Step 5 — Run `nao sync` until it succeeds
+## Step 3 — Run `nao sync` until it succeeds
 
 ```bash
 nao sync
 ```
 
-Common issues to handle:
+Common failures and the fix:
 
-- Auth failure → fix credentials in step 1.
-- Tables not found → confirm dataset / schema casing, confirm tables actually exist.
+- Auth → fix credentials in the yaml.
+- Tables not found → confirm dataset / schema casing.
 - Permission denied → grant read access to the service account.
-- External repo path missing → fix paths from step 3.
+- External repo missing → adjust the `repos:` block.
 
-Don't move on until `nao sync` exits cleanly. The synced files are what step 6 consumes.
+Don't move on until sync exits cleanly.
 
-## Step 6 — Generate a first simple `RULES.md`
+## Step 4 — Generate the first `RULES.md` (no confirmation)
 
-After `nao sync`, the project file system contains everything the next step needs. The empty `RULES.md` from `nao init` now gets populated.
+**Don't ask.** Hand off directly to `write-context-rules` to populate the empty `RULES.md` from the synced files (`databases/`, `repos/`, `docs/`, `semantics/`).
 
-Folders to read:
+## Step 5 — Wire up the LLM key
 
-- **`databases/`** — per-table schema, preview rows, and profiling.
-- **`repos/`** — every synced git repo (dbt, ETL, semantic layer, BI).
-- **`docs/`** — synced documentation (e.g. Notion workspace), if configured.
-- **`semantics/`** — semantic-layer YAMLs, if any were imported.
+The LLM key lives in `nao_config.yaml`. Two safe options:
 
-**Hand off to the `write-context-rules` skill.** It will detect the empty `RULES.md` and run its full flow — generating `## Business overview`, `## Data architecture`, `## Core data models`, `## Key Metrics Reference`, `## Analysis Process` from the synced files, then walking the user through metric source-of-truth validation and date-filtering rules.
+**Preferred — env var reference:**
 
-The `write-context-rules` skill owns the `RULES.md` template and is the only skill that writes to `RULES.md`. This skill (`setup-context`) only orchestrates.
+1. Pick the env var (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`).
+2. Write `api_key: ${ANTHROPIC_API_KEY}` in the yaml.
+3. **Tell the user to export the key in their shell themselves** — don't ask them to paste it into chat.
 
-## Step 7 — Recommend next steps
+**If they insist on storing the key in the file:**
+
+- Tell them to **edit `nao_config.yaml` themselves** and paste it on the `api_key` line. Don't have them paste it into the conversation — chat history goes through the LLM provider, and a leaked key is a real cost.
+- Make sure `nao_config.yaml` is in `.gitignore` if the key is literal.
+
+Either way, run `nao debug` to confirm the LLM connects.
+
+## Step 6 — Recommend next steps
 
 Tell the user, in this order:
 
-1. **Smoke test** — run `nao chat` and ask 3-5 questions you'd expect the agent to handle. See what works.
-2. **Review the generated `RULES.md`** — flag obvious wrong inferences from synced files.
+1. **Smoke test** — `nao chat`, ask 3-5 real questions, see what works.
+2. **Review `RULES.md`** — flag wrong inferences from synced files.
 3. **Pick a next skill (recommended order):**
-    - `write-context-rules` — generate the six standard sections of `RULES.md` (business overview, data architecture, core data models, key metrics reference, date filtering, analysis process), then walk through metric source-of-truth and date-filtering rules with the user.
-    - `create-context-tests` — build the 20-question benchmark so you can measure each rule change.
-    - `audit-context` — only relevant if an existing context was merged in and needs review.
-    - `add-semantic-layer` — wire in dbt MetricFlow, Cube, Snowflake views, or nao YAML semantic files as the source of truth for metrics. Do this once rules + tests are in place; the semantic layer routing then gets layered on top.
+    - `write-context-rules` — refine the rules.
+    - `create-context-tests` — build the test benchmark.
+    - `audit-context` — at any time, when something seems off.
+    - `add-semantic-layer` — only after tests reveal metric-reliability gaps.
 
 ## Guardrails
 
-- **Cap at 20 tables.** If the user pushes higher, walk through the trade-off (token bloat, slower iteration, lower reliability) before agreeing.
-- **One scope strategy at a time.** Don't mix broad + deep — it blows the table budget and the agent ends up shallow everywhere.
-- **Don't write `RULES.md` directly.** Step 6 hands off to `write-context-rules`. This skill orchestrates; that skill owns the template.
-- **Don't move past `nao sync` until it succeeds.** The synced files are the foundation for everything after.
-- **Don't overwrite an existing `RULES.md` or `nao_config.yaml`.** If found, stop and route to `audit-context`.
+- **Cap at ~100 tables.** Above that, sync gets slow and reliability drops. 20 is a great starting size, but don't be dogmatic — be dogmatic about 100.
+- **One batch of questions.** Don't ping-pong. Default reasonable answers and surface them.
+- **Resolve repo names yourself** via `gh` and common local paths before asking.
+- **Run `nao init` non-interactively.** Generate the yaml first, then run init. Don't first run init to "see what it asks".
+- **Use `templates`, not `accessors`** in database configs. Default is `[columns, how_to_use, preview]`.
+- **Never ask the user to paste their LLM key into chat.** Use env-var refs, or tell them to edit the file themselves.
+- **Don't ask before invoking `write-context-rules`.** Just hand off.
+
+## Appendix — `nao_config.yaml` skeleton
+
+```yaml
+project_name: <project>
+
+databases:
+    - type: bigquery # or snowflake | postgres | redshift | duckdb | clickhouse
+      name: <connection-name>
+      # auth fields vary by type — see nao docs for the exact shape per warehouse
+      include:
+          - '<dataset>.<table_pattern>' # e.g. "analytics.fct_*", "analytics.dim_*"
+      exclude:
+          - '<pattern>' # e.g. "*.tmp_*"
+      templates: [columns, how_to_use, preview]
+
+llm:
+    provider: anthropic # or openai | bedrock | azure | ...
+    model: claude-sonnet-4-7
+    api_key: ${ANTHROPIC_API_KEY} # env-var reference; export it yourself
+
+repos:
+    - name: <repo-name> # e.g. "company-dbt"
+      url: <git-url> # e.g. "git@github.com:org/company-dbt.git"
+      # or `path: ../company-dbt` for a local clone
+```
+
+Add `notion:`, `slack:`, `mcp:` blocks only if the user explicitly wanted them in step 1.

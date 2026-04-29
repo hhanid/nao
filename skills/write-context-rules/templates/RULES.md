@@ -51,21 +51,22 @@
 
 ## Date filtering
 
-> SQL formulas for common time periods. Use these verbatim — never re-derive inline.
+> Three example formulas. The agent extrapolates other periods from these patterns.
+> Convention: TODO (e.g. "Week starts Monday; 'last X weeks' excludes the current incomplete week.")
 
-### Last week
-
-```sql
-TODO
-```
-
-### This month
+### Last X weeks
 
 ```sql
 TODO
 ```
 
-### Last 30 days (rolling)
+### Last X days
+
+```sql
+TODO
+```
+
+### Current month
 
 ```sql
 TODO

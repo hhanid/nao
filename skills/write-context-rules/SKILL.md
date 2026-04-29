@@ -29,11 +29,13 @@ A complete `RULES.md` has these sections (see `templates/RULES.md`):
 
 ## Flow
 
+**Work section by section.** Generate one section, write it to `RULES.md`, show the user, then move to the next. Don't read everything and write everything in one go — the user can't see progress and can't course-correct.
+
 ### Step 1 — Check the state of `RULES.md`
 
 Read the existing `RULES.md` at the project root. Two paths:
 
-- **Empty** (or only the template scaffold from `nao init`) → run the **full flow** (steps 2-9).
+- **Empty** (or only the template scaffold from `nao init`) → run the **full flow** (steps 2-9), section by section.
 - **Has content** → run the **audit-and-fill flow** (bottom of this skill).
 
 ---
@@ -164,17 +166,23 @@ Then ask:
 - Fiscal year start, if it differs from the calendar.
 - Anything else specific to this org (custom fiscal calendar, week 1 definition, timezone).
 
-Write the resulting SQL formulas into `## Date filtering`, one block per common period (`Last week`, `This month`, `Last 30 days (rolling)`, etc.). The two questions above should be embodied in the SQL — the agent should never have to re-decide them at query time.
+**Write only three example formulas into `## Date filtering`** — the patterns the agent will compose from:
+
+- `Last X weeks` (parameterized, e.g. last 8 weeks)
+- `Last X days` (parameterized, e.g. last 30 days)
+- `Current month`
+
+That's it. Don't enumerate every period users might ask about — the agent extrapolates from these three. The two questions above should be embodied in the SQL so the agent never re-decides them at query time.
 
 Format example (Monday-start, exclude current week):
 
 ```sql
--- Last week
-WHERE date >= DATE_TRUNC(CURRENT_DATE - INTERVAL 7 DAY, ISOWEEK)
+-- Last X weeks (excludes current incomplete week)
+WHERE date >= DATE_TRUNC(CURRENT_DATE - INTERVAL (X * 7) DAY, ISOWEEK)
   AND date <  DATE_TRUNC(CURRENT_DATE, ISOWEEK)
 ```
 
-Add a one-line note above each block describing the convention used (e.g. `> Week starts Monday. "Last week" = the most recent fully-completed ISO week.`) — that way the user can re-read and verify the intent.
+Add a one-line note above each block describing the convention (e.g. `> Week starts Monday. "Last X weeks" = the X most recent fully-completed ISO weeks.`) so the user can verify intent at a glance.
 
 ---
 
@@ -191,10 +199,11 @@ For deeper diagnostics (MECE violations, schema drift, test failure root causes)
 
 ## Guardrails
 
+- **Generate section by section, not all at once.** Write each section to `RULES.md` and show the user before moving on — they need to see progress and catch wrong inferences early.
 - **Show diffs, don't auto-overwrite.**
 - **Don't bloat `RULES.md`.** Per-table detail goes in `databases/<table>.md`, not inline.
 - **Don't invent metric sources.** If a metric's source isn't clear from dbt docs / `semantics/`, list it for user validation in step 8 rather than guessing.
-- **One section at a time during edits.** Re-validate each before moving on.
+- **`## Date filtering` keeps three examples max.** Last X weeks, last X days, current month. Don't enumerate every period.
 
 ## Templates
 

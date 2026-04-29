@@ -110,59 +110,42 @@ Look for context bloat.
 
 If `RULES.md` is bloated, suggest moving per-table detail out into `databases/<table>.md` and keeping only the one-line pointer in `## Core data models / ### Most Used Tables`. If multiple distinct domains are in `RULES.md`, suggest a per-domain file map (e.g. `nao/<domain>/rules.md` referenced from `RULES.md`). Show the proposed structure before moving anything.
 
-## Output: audit report
+## Output: audit report (in conversation, not a file)
 
-Save to `nao/_audit/<YYYY-MM-DD>.md`:
+Report inline in the chat. **Don't create files.** The user reads it once and acts on it — saving it to disk adds clutter for no real benefit.
 
-```markdown
-# Context Audit — YYYY-MM-DD
+### Structure
 
-## Summary
+Lead with a **one-paragraph summary** covering four things at a glance:
 
-- Sync state: <complete / partial / not run>.
-- Scope: N tables in scope (<within / over> the <100 / ideal <20 ceiling).
-- `RULES.md` completeness: <N>/6 sections fully populated.
-- Test coverage: <N tests, X% passing / no tests yet>.
-- Highest-impact finding: <one-line>.
+- **Sync state** — complete / partial / not run.
+- **Scope wideness** — N tables in scope, vs. the ≤100 ceiling (and whether it's wide and shallow vs. narrow and deep).
+- **Rules quality** — N/6 standard sections present and substantive.
+- **Test coverage** — N tests, X% passing (or "no tests yet").
 
-## Findings
+Then **deep-dive one section at a time** (Steps 1-6 above), each as a short block. Skip a section entirely if it's clean — don't pad.
 
-### 1. Synced context
+End with a **prioritized action plan** ordered easiest-win → biggest-work, so the user can pick a starting point:
 
-- [ ] <gap>
+```
+## Plan
 
-### 2. RULES.md vs target structure
-
-- [ ] <missing or thin section>
-
-### 3. Context coverage (per table)
-
-| Table | Documented in RULES.md | dbt docs | Extra .md | Gap                                  |
-| ----- | ---------------------- | -------- | --------- | ------------------------------------ |
-| ...   | ✓                      | ✓        | —         | Missing column descriptions for X, Y |
-
-### 4. Data model consistency
-
-- [ ] <MECE violation, duplicate, ambiguity>
-
-### 5. Test failures (root causes)
-
-| Test | Category       | Proposed fix                      |
-| ---- | -------------- | --------------------------------- |
-| ...  | Date selection | Add DO/DON'T SQL for "last month" |
-
-### 6. Token / bloat
-
-- [ ] <oversized file, duplicate, unused table>
-
-## Recommended next actions (ranked by impact)
-
-1. ...
-2. ...
-3. ...
+1. (easy / 5 min) <quickest meaningful fix>
+2. (small / 30 min) <next>
+3. (medium / 1-2 hr) <next>
+4. (large / multi-session) <biggest item>
 ```
 
-End with: "Want me to apply fix #1?" — and if yes, route to the right skill (`write-context-rules`, `add-semantic-layer`, `create-context-tests`). **Don't auto-apply.**
+Each item should name the skill that does the work (`write-context-rules`, `create-context-tests`, `add-semantic-layer`) so the user can route directly.
+
+### Per-section formatting hints (use only when there's something to report)
+
+- **Synced context / RULES.md vs target / Token bloat** — bulleted gaps.
+- **Context coverage** — small table: Table | RULES.md | dbt docs | Extra .md | Gap.
+- **Data model consistency** — bulleted MECE violations / duplicates / ambiguities.
+- **Test failures** — small table: Test | Category | Proposed fix.
+
+Skip any section that's clean. Don't write empty subheadings.
 
 ## Guardrails
 
