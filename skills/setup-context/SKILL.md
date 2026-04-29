@@ -112,6 +112,26 @@ The LLM key lives in `nao_config.yaml`. Two safe options:
 
 Either way, run `nao debug` to confirm the LLM connects.
 
+### Known issue — running nao from inside an agentic CLI
+
+If you're driving this skill from **Claude Code, Cursor, Codex, or any other agentic CLI** and `nao chat` / `nao debug` / `nao test` errors with:
+
+```
+AI_APICallError: Not Found
+url: https://api.anthropic.com/messages   # note: no /v1/
+```
+
+…the parent agent process is exporting `ANTHROPIC_BASE_URL` (and sometimes `ANTHROPIC_API_KEY`) into the child's environment. nao reads the base URL and ends up hitting the wrong endpoint.
+
+**Fix:** unset both before launching:
+
+```bash
+unset ANTHROPIC_BASE_URL ANTHROPIC_API_KEY
+nao chat   # or nao debug, nao test
+```
+
+Regular human terminals aren't affected — this only shows up when the parent is itself an LLM CLI.
+
 ## Step 6 — Recommend next steps
 
 Tell the user, in this order:

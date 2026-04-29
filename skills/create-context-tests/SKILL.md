@@ -141,6 +141,8 @@ Iterate until the user signs off on the suite.
 
 **First run will ask for local login credentials.** The very first `nao test` invocation prompts the user to log in (the test runner hits the chat server's auth endpoint). The user has to type the credentials themselves — don't try to script around the prompt. Subsequent runs reuse the session.
 
+**If `nao chat` / `nao test` errors with `AI_APICallError: Not Found` at `https://api.anthropic.com/messages` (no `/v1/`):** the parent agent CLI is exporting `ANTHROPIC_BASE_URL` into the child env. Run `unset ANTHROPIC_BASE_URL ANTHROPIC_API_KEY` before launching `nao chat`. See `setup-context` for the full note.
+
 Then run:
 
 ```bash
