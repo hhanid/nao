@@ -1,6 +1,6 @@
 ---
 name: setup-context
-description: Bootstrap a nao agent for a project — gather warehouse + scope + extra-context info in one round of questions, run nao init + nao sync with sensible defaults, set up the LLM key, and generate the first RULES.md from the synced files. Use when the user has just decided to use nao on a new project. Only for first-time setup; for editing rules, generating tests, or reviewing an existing context, use write-context-rules / create-context-tests / audit-context.
+description: Bootstrap a nao agent for a project — gather warehouse + scope + extra-context info in one round, look up the warehouse-specific config from nao docs, write nao_config.yaml, run nao init + nao sync, set up the LLM key, and generate the first RULES.md. Use when the user has just decided to use nao on a new project. Only for first-time setup; for editing rules, generating tests, or reviewing an existing context, use write-context-rules / create-context-tests / audit-context.
 ---
 
 # setup-context
@@ -15,36 +15,57 @@ Take the user from `pip install nao-core` to a synced project with a starter `RU
 
 Send a single message asking for:
 
-1. **Warehouse + auth** — type (BigQuery / Snowflake / Postgres / Redshift / DuckDB / Databricks), project + dataset/schema, auth method.
+1. **Warehouse + auth** — type (BigQuery / Snowflake / Postgres / Redshift / DuckDB / Databricks / Athena / ClickHouse / Fabric / MSSQL / MySQL / Trino), and the auth credentials they have on hand. Tell them you'll fetch the exact field names from the nao docs once they pick a type.
 2. **Scope** — which tables. Two valid shapes:
     - **Broad** — gold/marts across multiple domains (exec / cross-functional agents).
     - **Deep** — silver + gold for one domain (team-specific agents).
-3. **Extra context** — dbt / ETL / BI repos, Notion, internal docs. **Ask for the name; resolve the path yourself.**
+3. **Extra context** — dbt / ETL / BI repos, Notion, internal docs. Ask for **the SSH git URL** of each repo (e.g. `git@github.com:org/repo.git`) — sync clones them. No local paths.
 4. **LLM** — provider + model. Key comes later (Step 5).
 
-**Resolving repo names:** try `gh repo view <user>/<name>` and `gh repo view <org>/<name>`; check `~/Projects/<name>`, `~/code/<name>`, `~/dev/<name>`. Prefer a local clone; otherwise use the git URL (sync will clone). Only ask for a path if both fail.
+## Step 2 — Look up warehouse fields, write `nao_config.yaml`, run `nao init`
 
-## Step 2 — Generate `nao_config.yaml` and run `nao init`
+1. **Fetch the warehouse-specific config** from [docs.getnao.io/nao-agent/context-builder/databases](https://docs.getnao.io/nao-agent/context-builder/databases). Each warehouse has its own required and optional fields (e.g. BigQuery needs `project_id` + `dataset_id`; Snowflake needs `account_id` + `warehouse` + `schema_name`; Postgres needs `host` + `port` + `database` + `schema_name`). Ask the user for any required field you don't already have.
 
-Don't run `nao init` first to "see what it asks". You know the flow.
+2. **Write `nao_config.yaml`** from the answers (skeleton in appendix below).
 
-1. **Write `nao_config.yaml`** from the answers (skeleton in appendix below).
-2. **Run `nao init`** — it detects the existing yaml and offers to update; confirm. Folder scaffold gets created.
-3. Say "no" to optional providers (skills / MCPs / Notion / Slack); edit the yaml directly afterwards if needed.
-4. Show the user the yaml + folder tree.
+3. **Run `nao init`** — it detects the existing yaml and offers to update; confirm. Folder scaffold gets created. Say "no" to optional providers (skills / MCPs / Notion / Slack); edit the yaml directly afterwards if needed.
 
-**Database `templates` field** (per database in the yaml): default to `[columns, how_to_use, preview]`. Available: `columns`, `preview`, `profiling`, `ai_summary`, `how_to_use`. **Don't use `accessors` — deprecated.**
+4. **Print a summary of `nao_config.yaml` to the user** before going further. Format example:
+    ```
+    nao_config.yaml summary
+      • project: <name>
+      • warehouse: BigQuery (project=<id>, dataset=<id>, auth=service-account)
+      • scope: include=["analytics.fct_*", "analytics.dim_*"], exclude=[]
+      • templates: [columns, preview, description]
+      • repos: company-dbt (git@github.com:org/company-dbt.git)
+      • llm: anthropic / claude-sonnet-4-7 (key via ${ANTHROPIC_API_KEY})
+    ```
+    Ask the user to confirm before continuing. This is the last cheap chance to catch a wrong project, a misspelled dataset, or a missing repo.
+
+### Database `templates` field
+
+Per database in the yaml, set:
+
+```yaml
+templates: [columns, preview, description]
+```
+
+That's the set this skill ships. Other values are valid per-warehouse (`how_to_use`, `profiling`, `ai_summary`, and `indexes` for ClickHouse) — see the docs link above — but stick to `[columns, preview, description]` unless the user specifically asks otherwise.
+
+**Don't use `accessors` — deprecated** (renamed to `templates`).
 
 `nao init` creates: `nao_config.yaml`, empty `RULES.md`, `.naoignore`, and folders `databases/`, `repos/`, `docs/`, `semantics/`, `queries/`, `tests/`, `agent/{tools,mcps,skills}/`.
 
 ## Step 3 — `nao sync`
+
+After the user confirms the summary in Step 2:
 
 ```bash
 cd <project>   # where nao_config.yaml lives — every nao command runs from here
 nao sync
 ```
 
-Common failures: auth (fix yaml), tables not found (check schema casing), permission denied (grant read access), repo missing (fix `repos:` block). Don't move on until sync is clean.
+Common failures: auth (fix yaml), tables not found (check schema casing), permission denied (grant read access), repo missing (fix `repos:` block, confirm SSH key). Don't move on until sync is clean.
 
 ## Step 4 — Generate `RULES.md` (no confirmation)
 
@@ -80,23 +101,30 @@ Regular human terminals aren't affected.
 
 - **`cd` into the project directory before any `nao` command.**
 - **Cap at ~100 tables.**
-- **One batch of questions.** Resolve repo names yourself.
+- **One batch of questions.** Look up warehouse-specific fields from the docs, don't keep pinging the user.
 - **Run `nao init` non-interactively** with the yaml pre-written.
-- **Use `templates`, not `accessors`.** Default `[columns, how_to_use, preview]`.
+- **Use `templates: [columns, preview, description]`.** Don't use `accessors`.
+- **Repos: SSH git URLs only.** No local paths in the `repos:` block.
+- **Print the `nao_config.yaml` summary** and get user confirmation before `nao sync`.
 - **Never have the user paste their LLM key into chat.**
 - **Don't ask before invoking `write-context-rules`** — just hand off.
 
-## Appendix — `nao_config.yaml` skeleton
+## Appendix — `nao_config.yaml` skeleton (BigQuery example)
+
+Use this shape and adapt the `databases:` block per warehouse — see [docs.getnao.io/nao-agent/context-builder/databases](https://docs.getnao.io/nao-agent/context-builder/databases) for the exact required/optional fields for Snowflake, Postgres, Redshift, Databricks, Athena, ClickHouse, Fabric, MSSQL, MySQL, Trino.
 
 ```yaml
 project_name: <project>
 
 databases:
-    - type: bigquery # snowflake | postgres | redshift | duckdb | clickhouse | databricks
+    - type: bigquery
       name: <connection-name>
+      project_id: <gcp-project-id>
+      dataset_id: <dataset>
+      credentials_path: /path/to/service-account.json # or `sso: true`
       include: ['<dataset>.<table_pattern>'] # e.g. "analytics.fct_*"
       exclude: ['<pattern>']
-      templates: [columns, how_to_use, preview]
+      templates: [columns, preview, description]
 
 llm:
     provider: anthropic # openai | bedrock | azure | gemini | mistral | ollama
@@ -105,5 +133,5 @@ llm:
 
 repos:
     - name: <repo-name>
-      url: <git-url> # or `path: ../company-dbt` for a local clone
+      url: git@github.com:<org>/<repo>.git # SSH only
 ```
