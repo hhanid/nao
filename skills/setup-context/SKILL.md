@@ -75,7 +75,10 @@ Available templates: `columns`, `preview`, `profiling`, `ai_summary`, `how_to_us
 
 ## Step 3 — Run `nao sync` until it succeeds
 
+**First, `cd` into the project directory** — the one containing `nao_config.yaml`. Every `nao` command (`sync`, `chat`, `test`, `debug`) is run from there. If `nao init` created a subfolder for the project, that's the new working directory; don't run `nao` commands from the parent.
+
 ```bash
+cd <project>   # the folder containing nao_config.yaml
 nao sync
 ```
 
@@ -113,7 +116,7 @@ Either way, run `nao debug` to confirm the LLM connects.
 
 Tell the user, in this order:
 
-1. **Smoke test** — `nao chat`, ask 3-5 real questions, see what works.
+1. **Smoke test** — from the project directory: `nao chat`, ask 3-5 real questions, see what works.
 2. **Review `RULES.md`** — flag wrong inferences from synced files.
 3. **Pick a next skill (recommended order):**
     - `write-context-rules` — refine the rules.
@@ -123,6 +126,7 @@ Tell the user, in this order:
 
 ## Guardrails
 
+- **Always `cd` into the project directory before running `nao` commands.** `nao_config.yaml` must be in the current working directory. If `nao init` made a subfolder, switch into it before `sync` / `chat` / `test` / `debug`.
 - **Cap at ~100 tables.** Above that, sync gets slow and reliability drops. 20 is a great starting size, but don't be dogmatic — be dogmatic about 100.
 - **One batch of questions.** Don't ping-pong. Default reasonable answers and surface them.
 - **Resolve repo names yourself** via `gh` and common local paths before asking.

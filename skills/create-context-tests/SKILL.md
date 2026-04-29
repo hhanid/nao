@@ -129,10 +129,17 @@ Iterate until the user signs off on the suite.
 
 ### Step 4 — Run `nao test`
 
-Two prerequisites before running:
+**Prerequisites — set these up before running:**
 
-1. `nao chat` must be running (the test runner uses the same chat infrastructure).
-2. An LLM model must be available and configured.
+1. **`cd` into the project directory** (the folder containing `nao_config.yaml`). Every `nao` command runs from there.
+2. **Start `nao chat` in the background** — the test runner reuses the chat infrastructure, so it has to be live in another process. Either run it in a second terminal or background it:
+    ```bash
+    nao chat &
+    # ...wait until it reports it's serving
+    ```
+3. **An LLM model must be configured** in `nao_config.yaml` (the model you'll pass to `-m`).
+
+**First run will ask for local login credentials.** The very first `nao test` invocation prompts the user to log in (the test runner hits the chat server's auth endpoint). The user has to type the credentials themselves — don't try to script around the prompt. Subsequent runs reuse the session.
 
 Then run:
 
@@ -165,6 +172,9 @@ Suggest the fix to the user, then route to `write-context-rules` (or `audit-cont
 
 ## Guardrails
 
+- **Always `cd` into the project directory before running `nao` commands.** `nao_config.yaml` must be in the current working directory.
+- **`nao chat` must be running before `nao test`.** The test runner uses the chat server. Start it in the background or a second terminal.
+- **First `nao test` run prompts for login credentials.** Let the user type them; don't script around the prompt.
 - **Don't write tests with SQL that contradicts `RULES.md`.** If you find a contradiction, stop and ask which is correct — that's a bug in either the rules or your test.
 - **Never write a test you can't run.** Every test's SQL should execute against the actual warehouse without modification.
 - **Use real table / column names from the user's schema in `FROM` clauses.** No `<table>` placeholders in saved tests.
