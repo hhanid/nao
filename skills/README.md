@@ -20,10 +20,13 @@ The five skills below cover the full context-engineering lifecycle for a nao age
 
 ## Distribution
 
-These skills are published two ways:
+Install all skills into the current project's `.claude/skills/` with:
 
-1. **`nao skills` CLI command** — installs into the user's project at `.claude/skills/<name>/`. Pulled from the published registry.
-2. **Vercel skills library** — published via a GitHub Action and served as a static site (`registry.json` + per-skill tarballs).
+```bash
+nao skills
+```
+
+This shells out to `npx skills add getnao/nao`, which fetches the latest `SKILL.md` files directly from this repo.
 
 ## Source material
 

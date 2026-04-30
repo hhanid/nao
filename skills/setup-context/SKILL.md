@@ -15,16 +15,16 @@ Take the user from `pip install nao-core` to a synced project with a starter `RU
 
 Send a single message asking for:
 
-1. **Warehouse + auth** — type (BigQuery / Snowflake / Postgres / Redshift / DuckDB / Databricks / Athena / ClickHouse / Fabric / MSSQL / MySQL / Trino), and the auth credentials they have on hand. Tell them you'll fetch the exact field names from the nao docs once they pick a type.
+1. **Warehouse + auth** — type (BigQuery / Snowflake / Postgres / Redshift / DuckDB / Databricks / Athena / ClickHouse / Fabric / MSSQL / MySQL / Trino), and the auth credentials they have on hand. Tell them you'll fetch the exact field names from the nao docs once they pick a type. Note: `nao init` uses interactive prompts — since agents can't handle dynamic terminal input, pre-write `nao_config.yaml` before running `nao init` so it detects the existing config instead of prompting.
 2. **Scope** — which tables. Two valid shapes:
     - **Broad** — gold/marts across multiple domains (exec / cross-functional agents).
     - **Deep** — silver + gold for one domain (team-specific agents).
-3. **Extra context** — dbt / ETL / BI repos, Notion, internal docs. Ask for **the SSH git URL** of each repo (e.g. `git@github.com:org/repo.git`) — sync clones them. No local paths.
+3. **Extra context** — dbt / ETL / BI repos, Notion, internal docs. Ask for **the git URL** of each repo (SSH e.g. `git@github.com:org/repo.git` or HTTPS e.g. `https://github.com/org/repo.git`) — sync clones them. Local paths are also supported (useful for monorepos): use `local_path` instead of `url` in the yaml.
 4. **LLM** — provider + model. Key comes later (Step 5).
 
 ## Step 2 — Look up warehouse fields, write `nao_config.yaml`, run `nao init`
 
-1. **Fetch the warehouse-specific config** from [docs.getnao.io/nao-agent/context-builder/databases](https://docs.getnao.io/nao-agent/context-builder/databases). Each warehouse has its own required and optional fields (e.g. BigQuery needs `project_id` + `dataset_id`; Snowflake needs `account_id` + `warehouse` + `schema_name`; Postgres needs `host` + `port` + `database` + `schema_name`). Ask the user for any required field you don't already have.
+1. **Fetch the warehouse-specific config** from [docs.getnao.io/nao-agent/context-builder/databases](https://docs.getnao.io/nao-agent/context-builder/databases). Each warehouse has its own required and optional fields (e.g. BigQuery needs `project_id`, optionally `dataset_id`; Snowflake needs `account_id` + `warehouse`, optionally `schema_name`; Postgres needs `host` + `port` + `database`, optionally `schema_name`). Ask the user for any required field you don't already have.
 
 2. **Write `nao_config.yaml`** from the answers (skeleton in appendix below).
 
@@ -38,7 +38,7 @@ Send a single message asking for:
       • scope: include=["analytics.fct_*", "analytics.dim_*"], exclude=[]
       • templates: [columns, preview, description]
       • repos: company-dbt (git@github.com:org/company-dbt.git)
-      • llm: anthropic / claude-sonnet-4-7 (key via ${ANTHROPIC_API_KEY})
+      • llm: anthropic (key via ${ANTHROPIC_API_KEY})
     ```
     Ask the user to confirm before continuing. This is the last cheap chance to catch a wrong project, a misspelled dataset, or a missing repo.
 
@@ -80,17 +80,6 @@ The key lives in `nao_config.yaml`. Two safe options:
 
 Then `nao debug` to confirm.
 
-### Known issue — `AI_APICallError: Not Found`
-
-If `nao chat` / `nao debug` / `nao test` fails with that error and the URL is `https://api.anthropic.com/messages` (no `/v1/`), the parent agentic CLI (Claude Code, Cursor, Codex) is leaking `ANTHROPIC_BASE_URL` into the child env. Fix:
-
-```bash
-unset ANTHROPIC_BASE_URL ANTHROPIC_API_KEY
-nao chat   # or debug / test
-```
-
-Regular human terminals aren't affected.
-
 ## Step 6 — Recommend next steps
 
 1. Smoke test: `nao chat`, ask 3-5 real questions.
@@ -104,7 +93,7 @@ Regular human terminals aren't affected.
 - **One batch of questions.** Look up warehouse-specific fields from the docs, don't keep pinging the user.
 - **Run `nao init` non-interactively** with the yaml pre-written.
 - **Use `templates: [columns, preview, description]`.** Don't use `accessors`.
-- **Repos: SSH git URLs only.** No local paths in the `repos:` block.
+- **Repos: git URLs (SSH or HTTPS) or local paths.** Use `local_path` for monorepo setups.
 - **Print the `nao_config.yaml` summary** and get user confirmation before `nao sync`.
 - **Never have the user paste their LLM key into chat.**
 - **Don't ask before invoking `write-context-rules`** — just hand off.
@@ -120,18 +109,19 @@ databases:
     - type: bigquery
       name: <connection-name>
       project_id: <gcp-project-id>
-      dataset_id: <dataset>
+      dataset_id: <dataset> # optional
       credentials_path: /path/to/service-account.json # or `sso: true`
-      include: ['<dataset>.<table_pattern>'] # e.g. "analytics.fct_*"
+      include: ['<schema_pattern>.<table_pattern>'] # e.g. "analytics.fct_*", "prod_*.*"
       exclude: ['<pattern>']
       templates: [columns, preview, description]
 
 llm:
-    provider: anthropic # openai | bedrock | azure | gemini | mistral | ollama
-    model: claude-sonnet-4-7
+    provider: anthropic # openai | bedrock | vertex | gemini | mistral | openrouter | ollama
     api_key: ${ANTHROPIC_API_KEY}
 
 repos:
     - name: <repo-name>
-      url: git@github.com:<org>/<repo>.git # SSH only
+      url: git@github.com:<org>/<repo>.git # or https://github.com/<org>/<repo>.git
+    # - name: <local-repo>
+    #   local_path: ../path/to/repo  # for monorepo setups
 ```
