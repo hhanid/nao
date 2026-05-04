@@ -44,14 +44,13 @@ export const projectRoutes = {
 		}));
 	}),
 
-	getCurrent: projectProtectedProcedure.query(({ ctx }) => {
-		if (!ctx.project) {
+	getCurrent: protectedProcedure.query(async ({ ctx }) => {
+		const project = await projectQueries.getProjectByUserId(ctx.user.id, ctx.selectedProjectId);
+		if (!project) {
 			return null;
 		}
-		return {
-			...ctx.project,
-			userRole: ctx.userRole,
-		};
+		const userRole = await projectQueries.getUserRoleInProject(project.id, ctx.user.id);
+		return { ...project, userRole };
 	}),
 
 	getDatabaseObjects: projectProtectedProcedure
