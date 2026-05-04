@@ -38,14 +38,6 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
 	{
 		page: '/settings/account',
 		pageLabel: 'Account',
-		section: 'General Settings',
-		title: 'nao Newsletter',
-		description: 'Get product updates and news from nao.',
-		keywords: ['newsletter', 'subscribe', 'updates', 'email', 'mailing list'],
-	},
-	{
-		page: '/settings/account',
-		pageLabel: 'Account',
 		title: 'Danger Zone',
 		description: 'Delete your account or perform other destructive actions.',
 		keywords: ['delete account', 'remove'],
@@ -388,5 +380,23 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
 		description: 'Browse and inspect the files and context available to the agent.',
 		keywords: ['files', 'context', 'documents', 'knowledge base'],
 		adminOnly: true,
+	},
+
+	// ── Updates ──────────────────────────────────────────────
+	{
+		page: '/settings/updates',
+		pageLabel: 'Updates',
+		section: 'Release Notes',
+		title: 'GitHub Releases',
+		description: 'See what is new in nao.',
+		keywords: ['changelog', 'releases', 'version', 'github', 'what is new'],
+	},
+	{
+		page: '/settings/updates',
+		pageLabel: 'Updates',
+		section: 'Newsletter',
+		title: 'nao Newsletter',
+		description: 'Get product updates and news from nao.',
+		keywords: ['newsletter', 'subscribe', 'updates', 'email', 'mailing list'],
 	},
 ];

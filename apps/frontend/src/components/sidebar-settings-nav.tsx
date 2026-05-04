@@ -91,6 +91,14 @@ const settingsNavItems: NavItem[] = [
 		to: '/settings/context-explorer',
 		visible: ({ isAdmin }) => isAdmin,
 	},
+	{
+		label: 'nao',
+		type: 'divider',
+	},
+	{
+		label: 'Updates',
+		to: '/settings/updates',
+	},
 ];
 
 interface SidebarSettingsNavProps {

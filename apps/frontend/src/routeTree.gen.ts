@@ -21,6 +21,7 @@ import { Route as SidebarLayoutSettingsIndexRouteImport } from './routes/_sideba
 import { Route as SidebarLayoutChatLayoutIndexRouteImport } from './routes/_sidebar-layout._chat-layout.index'
 import { Route as SidebarLayoutSharedChatShareIdRouteImport } from './routes/_sidebar-layout.shared-chat.$shareId'
 import { Route as SidebarLayoutSettingsUsageRouteImport } from './routes/_sidebar-layout.settings.usage'
+import { Route as SidebarLayoutSettingsUpdatesRouteImport } from './routes/_sidebar-layout.settings.updates'
 import { Route as SidebarLayoutSettingsProjectRouteImport } from './routes/_sidebar-layout.settings.project'
 import { Route as SidebarLayoutSettingsOrganizationRouteImport } from './routes/_sidebar-layout.settings.organization'
 import { Route as SidebarLayoutSettingsMemoryRouteImport } from './routes/_sidebar-layout.settings.memory'
@@ -104,6 +105,12 @@ const SidebarLayoutSettingsUsageRoute =
   SidebarLayoutSettingsUsageRouteImport.update({
     id: '/usage',
     path: '/usage',
+    getParentRoute: () => SidebarLayoutSettingsRoute,
+  } as any)
+const SidebarLayoutSettingsUpdatesRoute =
+  SidebarLayoutSettingsUpdatesRouteImport.update({
+    id: '/updates',
+    path: '/updates',
     getParentRoute: () => SidebarLayoutSettingsRoute,
   } as any)
 const SidebarLayoutSettingsProjectRoute =
@@ -249,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/settings/memory': typeof SidebarLayoutSettingsMemoryRoute
   '/settings/organization': typeof SidebarLayoutSettingsOrganizationRoute
   '/settings/project': typeof SidebarLayoutSettingsProjectRouteWithChildren
+  '/settings/updates': typeof SidebarLayoutSettingsUpdatesRoute
   '/settings/usage': typeof SidebarLayoutSettingsUsageRoute
   '/shared-chat/$shareId': typeof SidebarLayoutSharedChatShareIdRoute
   '/settings/': typeof SidebarLayoutSettingsIndexRoute
@@ -280,6 +288,7 @@ export interface FileRoutesByTo {
   '/settings/logs': typeof SidebarLayoutSettingsLogsRoute
   '/settings/memory': typeof SidebarLayoutSettingsMemoryRoute
   '/settings/organization': typeof SidebarLayoutSettingsOrganizationRoute
+  '/settings/updates': typeof SidebarLayoutSettingsUpdatesRoute
   '/settings/usage': typeof SidebarLayoutSettingsUsageRoute
   '/shared-chat/$shareId': typeof SidebarLayoutSharedChatShareIdRoute
   '/settings': typeof SidebarLayoutSettingsIndexRoute
@@ -315,6 +324,7 @@ export interface FileRoutesById {
   '/_sidebar-layout/settings/memory': typeof SidebarLayoutSettingsMemoryRoute
   '/_sidebar-layout/settings/organization': typeof SidebarLayoutSettingsOrganizationRoute
   '/_sidebar-layout/settings/project': typeof SidebarLayoutSettingsProjectRouteWithChildren
+  '/_sidebar-layout/settings/updates': typeof SidebarLayoutSettingsUpdatesRoute
   '/_sidebar-layout/settings/usage': typeof SidebarLayoutSettingsUsageRoute
   '/_sidebar-layout/shared-chat/$shareId': typeof SidebarLayoutSharedChatShareIdRoute
   '/_sidebar-layout/_chat-layout/': typeof SidebarLayoutChatLayoutIndexRoute
@@ -351,6 +361,7 @@ export interface FileRouteTypes {
     | '/settings/memory'
     | '/settings/organization'
     | '/settings/project'
+    | '/settings/updates'
     | '/settings/usage'
     | '/shared-chat/$shareId'
     | '/settings/'
@@ -382,6 +393,7 @@ export interface FileRouteTypes {
     | '/settings/logs'
     | '/settings/memory'
     | '/settings/organization'
+    | '/settings/updates'
     | '/settings/usage'
     | '/shared-chat/$shareId'
     | '/settings'
@@ -416,6 +428,7 @@ export interface FileRouteTypes {
     | '/_sidebar-layout/settings/memory'
     | '/_sidebar-layout/settings/organization'
     | '/_sidebar-layout/settings/project'
+    | '/_sidebar-layout/settings/updates'
     | '/_sidebar-layout/settings/usage'
     | '/_sidebar-layout/shared-chat/$shareId'
     | '/_sidebar-layout/_chat-layout/'
@@ -527,6 +540,13 @@ declare module '@tanstack/react-router' {
       path: '/usage'
       fullPath: '/settings/usage'
       preLoaderRoute: typeof SidebarLayoutSettingsUsageRouteImport
+      parentRoute: typeof SidebarLayoutSettingsRoute
+    }
+    '/_sidebar-layout/settings/updates': {
+      id: '/_sidebar-layout/settings/updates'
+      path: '/updates'
+      fullPath: '/settings/updates'
+      preLoaderRoute: typeof SidebarLayoutSettingsUpdatesRouteImport
       parentRoute: typeof SidebarLayoutSettingsRoute
     }
     '/_sidebar-layout/settings/project': {
@@ -746,6 +766,7 @@ interface SidebarLayoutSettingsRouteChildren {
   SidebarLayoutSettingsMemoryRoute: typeof SidebarLayoutSettingsMemoryRoute
   SidebarLayoutSettingsOrganizationRoute: typeof SidebarLayoutSettingsOrganizationRoute
   SidebarLayoutSettingsProjectRoute: typeof SidebarLayoutSettingsProjectRouteWithChildren
+  SidebarLayoutSettingsUpdatesRoute: typeof SidebarLayoutSettingsUpdatesRoute
   SidebarLayoutSettingsUsageRoute: typeof SidebarLayoutSettingsUsageRoute
   SidebarLayoutSettingsIndexRoute: typeof SidebarLayoutSettingsIndexRoute
 }
@@ -762,6 +783,7 @@ const SidebarLayoutSettingsRouteChildren: SidebarLayoutSettingsRouteChildren = {
     SidebarLayoutSettingsOrganizationRoute,
   SidebarLayoutSettingsProjectRoute:
     SidebarLayoutSettingsProjectRouteWithChildren,
+  SidebarLayoutSettingsUpdatesRoute: SidebarLayoutSettingsUpdatesRoute,
   SidebarLayoutSettingsUsageRoute: SidebarLayoutSettingsUsageRoute,
   SidebarLayoutSettingsIndexRoute: SidebarLayoutSettingsIndexRoute,
 }
