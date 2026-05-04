@@ -38,6 +38,14 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
 	{
 		page: '/settings/account',
 		pageLabel: 'Account',
+		section: 'General Settings',
+		title: 'nao Newsletter',
+		description: 'Get product updates and news from nao.',
+		keywords: ['newsletter', 'subscribe', 'updates', 'email', 'mailing list'],
+	},
+	{
+		page: '/settings/account',
+		pageLabel: 'Account',
 		title: 'Danger Zone',
 		description: 'Delete your account or perform other destructive actions.',
 		keywords: ['delete account', 'remove'],

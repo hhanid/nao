@@ -14,6 +14,7 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
 import { soundNotificationStorage } from '@/hooks/use-stream-end-sound';
 import { ThemeSelector } from '@/components/settings/theme-selector';
 import { DangerZone } from '@/components/settings/danger-zone';
+import { NewsletterSubscription } from '@/components/settings/newsletter-subscription';
 import { SettingsCard, SettingsPageWrapper } from '@/components/ui/settings-card';
 import { SettingsControlRow, SettingsToggleRow } from '@/components/ui/settings-toggle-row';
 import { trpc } from '@/main';
@@ -92,6 +93,7 @@ function GeneralPage() {
 					onCheckedChange={setSoundEnabled}
 				/>
 				<SettingsControlRow label='Theme' description='Choose how nao looks.' control={<ThemeSelector />} />
+				<NewsletterSubscription email={user?.email} />
 			</SettingsCard>
 
 			{!isViewer && <DangerZone />}
