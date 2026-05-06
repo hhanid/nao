@@ -71,7 +71,7 @@ jobs:
               run: uv pip install --system cyclopts
 
             - name: Install npm dependencies
-              run: bun install
+              run: bun install --frozen-lockfile
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
