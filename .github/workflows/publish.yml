@@ -15,22 +15,22 @@ jobs:
                       platform: darwin
                       arch: arm64
                       wheel-tag: macosx_15_0_arm64
-                    - os: macos-15-intel
-                      platform: darwin
-                      arch: x64
-                      wheel-tag: macosx_15_0_x86_64
-                    - os: ubuntu-latest
-                      platform: linux
-                      arch: x64
-                      wheel-tag: manylinux2014_x86_64
-                    - os: ubuntu-24.04-arm
-                      platform: linux
-                      arch: arm64
-                      wheel-tag: manylinux2014_aarch64
-                    - os: windows-latest
-                      platform: win
-                      arch: x64
-                      wheel-tag: win_amd64
+                    # - os: macos-15-intel
+                    #   platform: darwin
+                    #   arch: x64
+                    #   wheel-tag: macosx_15_0_x86_64
+                    # - os: ubuntu-latest
+                    #   platform: linux
+                    #   arch: x64
+                    #   wheel-tag: manylinux2014_x86_64
+                    # - os: ubuntu-24.04-arm
+                    #   platform: linux
+                    #   arch: arm64
+                    #   wheel-tag: manylinux2014_aarch64
+                    # - os: windows-latest
+                    #   platform: win
+                    #   arch: x64
+                    #   wheel-tag: win_amd64
 
         runs-on: ${{ matrix.os }}
         defaults:
