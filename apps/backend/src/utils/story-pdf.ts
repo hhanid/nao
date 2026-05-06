@@ -8,13 +8,13 @@ import { generateStoryHtml } from './story-html';
 let browserPromise: Promise<Browser> | null = null;
 
 async function loadPuppeteer() {
-	try {
-		return await import('puppeteer-core');
-	} catch {
-		throw new Error(
-			'puppeteer-core is not available. PDF export requires puppeteer-core and a Chrome/Chromium installation.',
-		);
-	}
+	return await import('puppeteer-core');
+	// try {
+	// } catch {
+	// 	throw new Error(
+	// 		'puppeteer-core is not available. PDF export requires puppeteer-core and a Chrome/Chromium installation.',
+	// 	);
+	// }
 }
 
 export async function generateStoryPdf(story: StoryInput, queryData: QueryDataMap | null): Promise<Buffer> {
