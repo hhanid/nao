@@ -48,6 +48,7 @@ export type UIMessage = UIGenericMessage<unknown, MessageCustomDataParts, UITool
 	source?: 'slack' | 'teams' | 'telegram' | 'whatsapp' | 'web' | 'mcp';
 	isForked?: boolean;
 	citation?: CitationData;
+	stopReason?: StopReason;
 };
 
 export type UITools = InferUITools<typeof tools>;
