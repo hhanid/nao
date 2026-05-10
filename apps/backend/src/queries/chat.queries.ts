@@ -39,6 +39,11 @@ const sourcePlatformExpr = sql<SourcePlatform>`case
 	when ${s.chat.teamsThreadId} is not null then 'Teams'
 	when ${s.chat.whatsappThreadId} is not null then 'WhatsApp'
 	when ${s.chat.telegramThreadId} is not null then 'Telegram'
+	when exists(
+		select 1 from ${s.chatMessage}
+		where ${s.chatMessage.chatId} = ${s.chat.id}
+		and ${s.chatMessage.source} = 'mcp'
+	) then 'MCP'
 	else 'Web'
 end`;
 
