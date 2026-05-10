@@ -13,6 +13,14 @@ export const Route = createFileRoute('/login')({
 	component: Login,
 });
 
+function buildOAuthAuthorizeUrl() {
+	const params = new URLSearchParams(window.location.search);
+	if (!params.has('client_id')) {
+		return null;
+	}
+	return `/api/auth/oauth2/authorize${window.location.search}`;
+}
+
 function Login() {
 	const navigate = useNavigate();
 	const { error: oauthError } = Route.useSearch();
@@ -21,12 +29,20 @@ function Login() {
 	const config = useQuery(trpc.system.getPublicConfig.queryOptions());
 	const isCloud = config.data?.naoMode === 'cloud';
 
+	const oauthAuthorizeUrl = buildOAuthAuthorizeUrl();
+
 	const form = useForm({
 		defaultValues: { email: '', password: '' },
 		onSubmit: async ({ value }) => {
 			setServerError(undefined);
 			await signIn.email(value, {
-				onSuccess: () => navigate({ to: '/' }),
+				onSuccess: () => {
+					if (oauthAuthorizeUrl) {
+						window.location.href = oauthAuthorizeUrl;
+					} else {
+						navigate({ to: '/' });
+					}
+				},
 				onError: (err) => setServerError(err.error.message),
 			});
 		},
@@ -39,6 +55,7 @@ function Login() {
 			submitText='Log In'
 			serverError={serverError}
 			displaySocialProviders={true}
+			socialCallbackUrl={oauthAuthorizeUrl ?? undefined}
 			footer={
 				isCloud ? (
 					<>
