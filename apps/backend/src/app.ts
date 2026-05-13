@@ -25,6 +25,7 @@ import { teamsRoutes } from './routes/teams';
 import { telegramRoutes } from './routes/telegram';
 import { testRoutes } from './routes/test';
 import { whatsappRoutes } from './routes/whatsapp';
+import { applyAwsSecretsToEnv } from './services/env-secrets';
 import { startLicenseHeartbeat } from './services/license.service';
 import { logLicenseStatus } from './services/license-startup';
 import { pingLicensesServer } from './services/ping';
@@ -281,6 +282,8 @@ if (staticRoot) {
 }
 
 export const startServer = async (opts: { port: number; host: string }) => {
+	await applyAwsSecretsToEnv();
+
 	if (isCloud) {
 		// TODO: Implement cloud mode
 	} else {

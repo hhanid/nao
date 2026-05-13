@@ -70,12 +70,15 @@ ollama = ["ollama>=0.4.0"]
 # Integrations
 notion = ["notion-client>=2.7.0", "notion2md>=2.9.0"]
 
+# Cloud secrets backends (resolved by `{{ aws_secret(id, key) }}` in nao_config.yaml)
+aws-secrets = ["boto3>=1.42.70"]
+
 # Convenience groups
 all-databases = [
     "nao-core[postgres,bigquery,snowflake,duckdb,clickhouse,databricks,mysql,mssql,athena,trino,redshift,fabric]",
 ]
 all-llms = ["nao-core[openai,anthropic,mistral,gemini,ollama]"]
-all = ["nao-core[all-databases,all-llms,notion]"]
+all = ["nao-core[all-databases,all-llms,notion,aws-secrets]"]
 dev = ["pytest-cov", "pytest-timeout>=2.3.0"]
 
 [project.scripts]

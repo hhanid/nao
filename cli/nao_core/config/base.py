@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -303,6 +304,7 @@ class NaoConfig(BaseModel):
         content = config_file.read_text()
         processed_content, env_vars = cls._process_env_vars(content, extra_env=extra_env)
         cls._missing_env_vars = {k: None for k, v in env_vars.items() if v is None}
+        processed_content = cls._process_aws_secrets(processed_content)
         data = yaml.safe_load(processed_content)
         return cls.model_validate(data)
 
@@ -357,6 +359,9 @@ class NaoConfig(BaseModel):
         except yaml.YAMLError as e:
             handle_error(f"Failed to load nao_config.yaml: Invalid YAML syntax: {e}")
             return None
+        except NaoConfigError as e:
+            handle_error(str(e))
+            return None
         except ValidationError as e:
             # Build detailed error message with suggestions
             main_errors = format_all_validation_errors(e, cls)
@@ -404,6 +409,67 @@ class NaoConfig(BaseModel):
 
         processed = regex.sub(replacer, content)
         return processed, env_vars
+
+    @classmethod
+    def _process_aws_secrets(cls, content: str) -> str:
+        """Resolve `{{ aws_secret('id', 'key') }}` and `${{ aws_secret('id', 'key') }}`
+        placeholders against AWS Secrets Manager.
+
+        Each secret is fetched once per `load()` call and re-used across keys.
+        Failures (missing secret, missing key, network/permission errors,
+        non-JSON payload) raise `NaoConfigError` so the user gets a clear
+        error instead of silently empty config values.
+        """
+        regex = re.compile(r"\$?\{\{\s*aws_secret\(\s*['\"]([^'\"]+)['\"]\s*,\s*['\"]([^'\"]+)['\"]\s*\)\s*\}\}")
+        if not regex.search(content):
+            return content
+
+        secret_cache: dict[str, dict[str, str]] = {}
+
+        def replacer(match: re.Match[str]) -> str:
+            secret_id, key = match.group(1), match.group(2)
+            secret = secret_cache.get(secret_id) or cls._fetch_aws_secret(secret_id)
+            secret_cache[secret_id] = secret
+            if key not in secret:
+                raise NaoConfigError(f"AWS secret '{secret_id}' has no key '{key}'")
+            return secret[key]
+
+        return regex.sub(replacer, content)
+
+    @staticmethod
+    def _fetch_aws_secret(secret_id: str) -> dict[str, str]:
+        """Fetch and parse an AWS Secrets Manager secret as a flat string-to-string map.
+
+        Non-string values (numbers, booleans, nested objects) are JSON-encoded
+        so the YAML loader still gets a string and the user can opt into JSON
+        parsing on their side if needed.
+        """
+        from nao_core.deps import require_dependency
+
+        require_dependency("boto3", "aws-secrets", "to resolve {{ aws_secret(...) }} in nao_config.yaml")
+        import boto3
+        from botocore.exceptions import BotoCoreError, ClientError
+
+        region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
+        client = boto3.client("secretsmanager", region_name=region)
+        try:
+            response = client.get_secret_value(SecretId=secret_id)
+        except (BotoCoreError, ClientError) as e:
+            raise NaoConfigError(f"Failed to fetch AWS secret '{secret_id}': {e}") from e
+
+        raw = response.get("SecretString")
+        if not raw:
+            raise NaoConfigError(f"AWS secret '{secret_id}' has no SecretString value")
+
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as e:
+            raise NaoConfigError(f"AWS secret '{secret_id}' is not valid JSON: {e}") from e
+
+        if not isinstance(data, dict):
+            raise NaoConfigError(f"AWS secret '{secret_id}' must be a JSON object of key-value pairs")
+
+        return {k: v if isinstance(v, str) else json.dumps(v) for k, v in data.items()}
 
 
 def resolve_project_path() -> Path:

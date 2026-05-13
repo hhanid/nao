@@ -77,6 +77,12 @@ const envSchema = z.object({
 		.optional()
 		.transform((val) => val?.trim() || undefined),
 
+	AWS_REGION: z.string().optional(),
+	AWS_SECRETS_ENV_IDS: z
+		.string()
+		.optional()
+		.transform((val) => val?.trim() || undefined),
+
 	POSTHOG_KEY: z.string().optional(),
 	POSTHOG_HOST: z.url({ message: 'POSTHOG_HOST must be a valid URL' }).optional(),
 	POSTHOG_DISABLED: z
@@ -103,15 +109,17 @@ if (result.data.NAO_DEFAULT_PROJECT_PATH && result.data.NAO_MODE === 'cloud') {
 export const env = result.data;
 
 /**
- * TEST ONLY — re-parse `process.env` into the exported `env` object so tests
- * that mutate env vars between cases can observe the new values. Callers who
+ * Re-parse `process.env` into the exported `env` object. Callers who
  * imported `env` keep seeing the live object because we mutate in place
  * rather than reassign.
+ *
+ * Used at boot after `applyAwsSecretsToEnv` mutates `process.env`, and
+ * by tests that need to observe values mutated between cases.
  */
-export function __reloadEnvForTesting(): void {
+export function reloadEnv(): void {
 	const parsed = envSchema.safeParse(process.env);
 	if (!parsed.success) {
-		throw new Error(`Invalid env during test reload: ${parsed.error.message}`);
+		throw new Error(`Invalid env during reload: ${parsed.error.message}`);
 	}
 	// Clear first: zod omits optional keys from its output when the input is
 	// absent, so a bare Object.assign would leave the previous value in place.

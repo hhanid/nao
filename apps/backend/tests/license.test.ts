@@ -5,7 +5,7 @@ import path from 'node:path';
 import { exportSPKI, generateKeyPair, SignJWT } from 'jose';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { __reloadEnvForTesting } from '../src/env';
+import { reloadEnv } from '../src/env';
 import {
 	getLicense,
 	hasFeature,
@@ -32,7 +32,7 @@ describe('license.service', () => {
 
 	afterEach(() => {
 		process.env = originalEnv;
-		__reloadEnvForTesting();
+		reloadEnv();
 		stopLicenseHeartbeat();
 		resetLicenseCache();
 		vi.unstubAllGlobals();
@@ -197,7 +197,7 @@ function setLicenseEnv({ licensePath, publicKeyPem }: LicenseEnv): void {
 	if (publicKeyPem !== undefined) {
 		process.env.NAO_LICENSE_PUBLIC_KEY = publicKeyPem;
 	}
-	__reloadEnvForTesting();
+	reloadEnv();
 }
 
 interface LicenseClaims {
