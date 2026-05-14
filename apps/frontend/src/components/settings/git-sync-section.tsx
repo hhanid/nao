@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Github, GitBranch, Loader2, RefreshCw } from 'lucide-react';
 
+import { GitHubRepoPicker } from '@/components/settings/github-repo-picker';
 import { Button } from '@/components/ui/button';
 import { ErrorMessage } from '@/components/ui/error-message';
 import { SettingsCard } from '@/components/ui/settings-card';
@@ -32,10 +34,17 @@ function formatRelativeDate(isoDate: string): string {
 
 export function GitSyncSection() {
 	const queryClient = useQueryClient();
+	const [repoPickerOpen, setRepoPickerOpen] = useState(false);
 
 	const gitInfo = useQuery({
 		...trpc.github.getProjectGitInfo.queryOptions(),
 		staleTime: 30_000,
+	});
+
+	const githubAvailable = useQuery(trpc.github.isAvailable.queryOptions());
+	const githubStatus = useQuery({
+		...trpc.github.getStatus.queryOptions(),
+		enabled: githubAvailable.data === true,
 	});
 
 	const pullMutation = useMutation({
@@ -54,7 +63,39 @@ export function GitSyncSection() {
 	}
 
 	if (!gitInfo.data?.isGithub) {
-		return null;
+		if (githubAvailable.data !== true) {
+			return null;
+		}
+
+		const isGithubConnected = githubStatus.data?.connected === true;
+
+		return (
+			<>
+				<SettingsCard title='Import from GitHub' icon={<Github className='size-4' />}>
+					<div className='flex items-center justify-between'>
+						<p className='text-sm text-muted-foreground'>
+							{isGithubConnected
+								? 'Replace this project with a GitHub repository.'
+								: 'Connect GitHub to import a repository into this project.'}
+						</p>
+						{isGithubConnected ? (
+							<Button variant='secondary' size='sm' onClick={() => setRepoPickerOpen(true)}>
+								<Github className='size-3.5' />
+								Import from GitHub
+							</Button>
+						) : (
+							<Button variant='secondary' size='sm' asChild>
+								<a href='/api/github/connect'>
+									<Github className='size-3.5' />
+									Connect GitHub
+								</a>
+							</Button>
+						)}
+					</div>
+				</SettingsCard>
+				<GitHubRepoPicker open={repoPickerOpen} onOpenChange={setRepoPickerOpen} />
+			</>
+		);
 	}
 
 	const { repoFullName, branch, lastCommitMessage, lastCommitDate } = gitInfo.data;

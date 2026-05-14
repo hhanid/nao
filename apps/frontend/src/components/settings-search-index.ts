@@ -93,6 +93,14 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
 	{
 		page: '/settings/project',
 		pageLabel: 'Project',
+		title: 'Import from GitHub',
+		description: 'Import a GitHub repository into this project.',
+		keywords: ['github', 'repository', 'repo', 'import', 'git', 'clone'],
+		adminOnly: true,
+	},
+	{
+		page: '/settings/project',
+		pageLabel: 'Project',
 		title: 'Environment Variables',
 		description: 'Set environment variables referenced in nao_config.yaml.',
 		keywords: ['env', 'environment', 'variable', 'secret', 'credential', 'config', 'jinja'],
