@@ -7,7 +7,9 @@ import type { QueryDataMap } from '@/components/story-embeds';
 import { StoryChartEmbed as LiveChartEmbed, StoryTableEmbed as LiveTableEmbed } from '@/components/story-embeds';
 import { SegmentList } from '@/components/story-rendering';
 import { StoryChartEmbed as StaticChartEmbed } from '@/components/side-panel/story-chart-embed';
+import { StoryFilterBar } from '@/components/side-panel/story-filter-bar';
 import { StoryTableEmbed as StaticTableEmbed } from '@/components/side-panel/story-table-embed';
+import { StoryFiltersProvider } from '@/contexts/story-filters';
 import { trpc } from '@/main';
 
 interface StoryPreviewProps {
@@ -15,6 +17,7 @@ interface StoryPreviewProps {
 	cacheSchedule: string | null;
 	queryData: QueryDataMap | null;
 	chatId: string;
+	storySlug?: string;
 	versionKey?: string | number;
 }
 
@@ -23,6 +26,7 @@ export const StoryPreview = memo(function StoryPreview({
 	cacheSchedule,
 	queryData,
 	chatId,
+	storySlug,
 	versionKey,
 }: StoryPreviewProps) {
 	const segments = useMemo(() => splitCodeIntoSegments(code), [code]);
@@ -66,13 +70,16 @@ export const StoryPreview = memo(function StoryPreview({
 	);
 
 	return (
-		<div data-story-content className='p-6 flex flex-col gap-4'>
-			<SegmentList
-				segments={segments}
-				versionKey={versionKey}
-				renderChart={renderChart}
-				renderTable={renderTable}
-			/>
-		</div>
+		<StoryFiltersProvider storyCode={code} storyKey={storySlug}>
+			<StoryFilterBar queryData={queryData} />
+			<div data-story-content className='p-6 flex flex-col gap-4'>
+				<SegmentList
+					segments={segments}
+					versionKey={versionKey}
+					renderChart={renderChart}
+					renderTable={renderTable}
+				/>
+			</div>
+		</StoryFiltersProvider>
 	);
 });

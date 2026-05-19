@@ -2,6 +2,7 @@ import {
 	getGridClass,
 	parseChartAttributes,
 	parseChartBlock,
+	parseFilterBlock,
 	parseTableBlock,
 	splitCodeIntoSegments,
 } from '@nao/shared/story-segments';
@@ -11,7 +12,7 @@ import { TableKit } from '@tiptap/extension-table';
 import { Markdown } from '@tiptap/markdown';
 import { EditorContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { GripVertical } from 'lucide-react';
+import { Filter as FilterIcon, GripVertical } from 'lucide-react';
 import { memo, useEffect, useMemo, useRef } from 'react';
 import { Streamdown } from 'streamdown';
 
@@ -51,6 +52,10 @@ export function preprocessForEditor(code: string): string {
 
 	result = result.replace(/<table\s+[^/>]*\/?>/g, (match) => {
 		return `<div><table-embed data-raw="${encodeForAttr(match)}"></table-embed></div>\n\n`;
+	});
+
+	result = result.replace(/<filter\s+[^/>]*\/?>/g, (match) => {
+		return `<div><filter-embed data-raw="${encodeForAttr(match)}"></filter-embed></div>\n\n`;
 	});
 
 	return result;
@@ -210,6 +215,86 @@ const TableBlock = Node.create({
 });
 
 // ---------------------------------------------------------------------------
+// FilterBlock extension – atom node rendered as a non-interactive chip;
+// the `<filter ... />` tag is preserved verbatim in the markdown.
+// ---------------------------------------------------------------------------
+
+function FilterBlockView({ node }: ReactNodeViewProps) {
+	const rawTag = node.attrs.rawTag as string;
+
+	const filter = useMemo(() => {
+		const attrMatch = rawTag.match(/<filter\s+([^/>]*)\/?>/);
+		if (!attrMatch) {
+			return null;
+		}
+		return parseFilterBlock(attrMatch[1]);
+	}, [rawTag]);
+
+	if (!filter) {
+		return (
+			<NodeViewWrapper draggable data-type='filter-block'>
+				<div className='my-2 rounded-lg border border-dashed p-3 text-center text-sm text-muted-foreground'>
+					Invalid filter block
+				</div>
+			</NodeViewWrapper>
+		);
+	}
+
+	return (
+		<NodeViewWrapper draggable data-type='filter-block'>
+			<div className='my-2 inline-flex items-center gap-2 rounded-md border bg-muted/30 px-2 py-1 text-xs text-muted-foreground'>
+				<FilterIcon className='size-3.5' />
+				<span className='font-medium text-foreground'>{filter.label}</span>
+				<span className='opacity-70'>filter</span>
+				<code className='rounded bg-muted px-1 py-0.5 text-[10px]'>{filter.field}</code>
+			</div>
+		</NodeViewWrapper>
+	);
+}
+
+const FilterBlock = Node.create({
+	name: 'filterBlock',
+	group: 'block',
+	atom: true,
+	selectable: true,
+	draggable: true,
+
+	addAttributes() {
+		return {
+			rawTag: { default: '' },
+		};
+	},
+
+	parseHTML() {
+		return [
+			{
+				tag: 'filter-embed',
+				getAttrs(element) {
+					if (typeof element === 'string') {
+						return false;
+					}
+					const encoded = element.getAttribute('data-raw') || '';
+					return { rawTag: decodeFromAttr(encoded) };
+				},
+			},
+		];
+	},
+
+	renderHTML({ HTMLAttributes }) {
+		return ['filter-embed', mergeAttributes(HTMLAttributes)];
+	},
+
+	addNodeView() {
+		return ReactNodeViewRenderer(FilterBlockView);
+	},
+
+	renderMarkdown(node) {
+		const rawTag = typeof node.attrs?.rawTag === 'string' ? node.attrs.rawTag : '';
+		return `${rawTag}\n\n`;
+	},
+});
+
+// ---------------------------------------------------------------------------
 // GridBlock extension – atom node rendered as a grid of charts/markdown
 // ---------------------------------------------------------------------------
 
@@ -356,6 +441,7 @@ const EDITOR_EXTENSIONS = [
 	}),
 	ChartBlock,
 	TableBlock,
+	FilterBlock,
 	GridBlock,
 ];
 

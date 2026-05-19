@@ -293,7 +293,7 @@ function preservesStoryStructure(originalCode: string, candidateCode: string): b
 }
 
 function extractStructureTokens(code: string): string[] {
-	return code.match(/<grid\s+[^>]*>|<\/grid>|<chart\s+[^/>]*\/?>|<table\s+[^/>]*\/?>/g) ?? [];
+	return code.match(/<grid\s+[^>]*>|<\/grid>|<chart\s+[^/>]*\/?>|<table\s+[^/>]*\/?>|<filter\s+[^/>]*\/?>/g) ?? [];
 }
 
 function extractHeadingTokens(code: string): string[] {

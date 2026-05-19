@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { ParsedChartBlock, ParsedTableBlock } from '@nao/shared/story-segments';
 import type { displayChart } from '@nao/shared/tools';
@@ -7,6 +7,7 @@ import type { displayChart } from '@nao/shared/tools';
 import { StoryChartEmbedShell } from '@/components/side-panel/story-chart-embed';
 import { ChartDisplay } from '@/components/tool-calls/display-chart';
 import { TableDisplay } from '@/components/tool-calls/display-table';
+import { useStoryFilters } from '@/contexts/story-filters';
 
 export type QueryDataMap = Record<string, { data: Record<string, unknown>[]; columns: string[] }>;
 
@@ -54,18 +55,26 @@ export const StoryChartEmbed = memo(function StoryChartEmbed({
 	liveQuery?: LiveQueryConfig;
 }) {
 	const noCacheFetch = useLiveQueryData(chart.queryId, liveQuery);
+	const filters = useStoryFilters();
 
 	const resolved = liveQuery
 		? (noCacheFetch.data as { data: Record<string, unknown>[]; columns: string[] } | undefined)
 		: queryData?.[chart.queryId];
 	const resolvedData = resolved?.data;
-	const resolvedColumns = resolved?.columns ?? [];
+	const resolvedColumns = useMemo(() => resolved?.columns ?? [], [resolved?.columns]);
+
+	const filteredData = useMemo(() => {
+		if (!resolvedData) {
+			return null;
+		}
+		return filters ? filters.applyToRows(chart.queryId, resolvedColumns, resolvedData) : resolvedData;
+	}, [filters, chart.queryId, resolvedColumns, resolvedData]);
 
 	if (liveQuery && noCacheFetch.isLoading) {
 		return <EmbedLoading />;
 	}
 
-	if (!resolvedData || resolvedData.length === 0) {
+	if (!filteredData || filteredData.length === 0) {
 		return <EmbedPlaceholder>Chart data unavailable</EmbedPlaceholder>;
 	}
 
@@ -76,7 +85,7 @@ export const StoryChartEmbed = memo(function StoryChartEmbed({
 	return (
 		<StoryChartEmbedShell chart={chart} availableColumns={resolvedColumns}>
 			<ChartDisplay
-				data={resolvedData}
+				data={filteredData}
 				chartType={chart.chartType as displayChart.ChartType}
 				xAxisKey={chart.xAxisKey}
 				xAxisType={chart.xAxisType === 'number' ? 'number' : 'category'}
@@ -97,23 +106,33 @@ export const StoryTableEmbed = memo(function StoryTableEmbed({
 	liveQuery?: LiveQueryConfig;
 }) {
 	const noCacheFetch = useLiveQueryData(table.queryId, liveQuery);
+	const filters = useStoryFilters();
 
 	const resolvedResult = liveQuery
 		? (noCacheFetch.data as { data: Record<string, unknown>[]; columns: string[] } | undefined)
 		: queryData?.[table.queryId];
 
+	const filteredRows = useMemo(() => {
+		if (!resolvedResult?.data) {
+			return null;
+		}
+		return filters
+			? filters.applyToRows(table.queryId, resolvedResult.columns ?? [], resolvedResult.data)
+			: resolvedResult.data;
+	}, [filters, table.queryId, resolvedResult?.data, resolvedResult?.columns]);
+
 	if (liveQuery && noCacheFetch.isLoading) {
 		return <EmbedLoading />;
 	}
 
-	if (!resolvedResult?.data) {
+	if (!filteredRows) {
 		return <EmbedPlaceholder>Table data unavailable</EmbedPlaceholder>;
 	}
 
 	return (
 		<TableDisplay
-			data={resolvedResult.data}
-			columns={resolvedResult.columns}
+			data={filteredRows}
+			columns={resolvedResult?.columns ?? []}
 			title={table.title}
 			tableContainerClassName='max-h-[28rem]'
 		/>

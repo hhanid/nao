@@ -6,7 +6,8 @@ export function extractStorySummary(code: string): StorySummary {
 
 function extractSegments(code: string): SummarySegment[] {
 	const segments: SummarySegment[] = [];
-	const blockRegex = /<grid\s+([^>]*)>([\s\S]*?)<\/grid>|<chart\s+([^/>]*)\/?>|<table\s+([^/>]*)\/?>/g;
+	const blockRegex =
+		/<grid\s+([^>]*)>([\s\S]*?)<\/grid>|<chart\s+([^/>]*)\/?>|<table\s+([^/>]*)\/?>|<filter\s+[^/>]*\/?>/g;
 	let match;
 	let lastIndex = 0;
 

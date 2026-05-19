@@ -14,10 +14,28 @@ export interface ParsedTableBlock {
 	title: string;
 }
 
+export type FilterType = 'select' | 'multi-select' | 'text';
+
+export interface ParsedFilterBlock {
+	id: string;
+	label: string;
+	field: string;
+	type: FilterType;
+	/** Static option list provided by the author. When omitted, options are derived from row data. */
+	values: string[] | null;
+	/** Initial value(s). For multi-select this can be a comma-separated list; "all" / "" means no filter. */
+	default: string;
+	/** When set, restricts which query_ids this filter scopes to. Otherwise applies to every query containing `field`. */
+	applyTo: string[] | null;
+	/** The original `<filter ... />` tag this block was parsed from, when available. */
+	rawTag?: string;
+}
+
 export type Segment =
 	| { type: 'markdown'; content: string }
 	| { type: 'chart'; chart: ParsedChartBlock }
 	| { type: 'table'; table: ParsedTableBlock }
+	| { type: 'filter'; filter: ParsedFilterBlock }
 	| { type: 'grid'; cols: number; children: Segment[] };
 
 function unescapeAttributeValue(value: string): string {
@@ -84,6 +102,35 @@ export function buildChartTag(config: {
 	)}" series='${escapeSingleQuotedAttr(seriesJson)}' title="${escapeDoubleQuotedAttr(config.title ?? '')}" />`;
 }
 
+const VALID_FILTER_TYPES: ReadonlySet<FilterType> = new Set<FilterType>(['select', 'multi-select', 'text']);
+
+export function parseFilterBlock(attrString: string): ParsedFilterBlock | null {
+	const attrs = parseChartAttributes(attrString);
+	if (!attrs.id || !attrs.field) {
+		return null;
+	}
+	const type: FilterType = VALID_FILTER_TYPES.has(attrs.type as FilterType) ? (attrs.type as FilterType) : 'select';
+	const values = attrs.values ? splitCsv(attrs.values) : null;
+	const applyTo = attrs.apply_to ? splitCsv(attrs.apply_to) : null;
+
+	return {
+		id: attrs.id,
+		label: attrs.label || attrs.id,
+		field: attrs.field,
+		type,
+		values,
+		default: attrs.default ?? '',
+		applyTo,
+	};
+}
+
+function splitCsv(value: string): string[] {
+	return value
+		.split(',')
+		.map((v) => v.trim())
+		.filter((v) => v.length > 0);
+}
+
 export function parseTableBlock(attrString: string): ParsedTableBlock | null {
 	const attrs = parseChartAttributes(attrString);
 	if (!attrs.query_id) {
@@ -143,7 +190,8 @@ function extractSeriesFromRawAttrs(attrString: string): ParsedChartBlock['series
 
 export function splitCodeIntoSegments(code: string): Segment[] {
 	const segments: Segment[] = [];
-	const blockRegex = /<grid\s+([^>]*)>([\s\S]*?)<\/grid>|<chart\s+([^/>]*)\/?>|<table\s+([^/>]*)\/?>/g;
+	const blockRegex =
+		/<grid\s+([^>]*)>([\s\S]*?)<\/grid>|<chart\s+([^/>]*)\/?>|<table\s+([^/>]*)\/?>|<filter\s+([^/>]*)\/?>/g;
 	let match;
 	let lastIndex = 0;
 
@@ -170,6 +218,11 @@ export function splitCodeIntoSegments(code: string): Segment[] {
 			if (table) {
 				segments.push({ type: 'table', table });
 			}
+		} else if (match[5] !== undefined) {
+			const filter = parseFilterBlock(match[5]);
+			if (filter) {
+				segments.push({ type: 'filter', filter: { ...filter, rawTag: match[0] } });
+			}
 		}
 
 		lastIndex = match.index + match[0].length;
@@ -183,4 +236,70 @@ export function splitCodeIntoSegments(code: string): Segment[] {
 	}
 
 	return segments;
+}
+
+/**
+ * Returns true when this filter has a meaningful selection. An empty value, an
+ * empty list, or the special literal "all" is treated as "no filter applied".
+ */
+export function isActiveFilterValue(value: string | string[] | undefined): boolean {
+	if (value === undefined) {
+		return false;
+	}
+	if (typeof value === 'string') {
+		const v = value.trim().toLowerCase();
+		return v.length > 0 && v !== 'all';
+	}
+	const cleaned = value.map((v) => v.trim().toLowerCase()).filter((v) => v.length > 0 && v !== 'all');
+	return cleaned.length > 0;
+}
+
+/**
+ * Applies a single filter selection to a row. Returns true when the row passes
+ * (or when the filter does not apply because the column is absent or empty).
+ */
+export function matchFilter(
+	filter: ParsedFilterBlock,
+	value: string | string[] | undefined,
+	row: Record<string, unknown>,
+): boolean {
+	if (!isActiveFilterValue(value)) {
+		return true;
+	}
+	const cell = row[filter.field];
+	if (cell === undefined) {
+		return true;
+	}
+	const cellString = cell === null ? '' : String(cell);
+
+	switch (filter.type) {
+		case 'select': {
+			return cellString === String(value);
+		}
+		case 'multi-select': {
+			const list = Array.isArray(value) ? value : String(value).split(',');
+			const normalized = list.map((v) => v.trim()).filter((v) => v.length > 0 && v.toLowerCase() !== 'all');
+			return normalized.length === 0 || normalized.includes(cellString);
+		}
+		case 'text': {
+			const needle = String(value).trim().toLowerCase();
+			return needle.length === 0 || cellString.toLowerCase().includes(needle);
+		}
+	}
+}
+
+/**
+ * Walks a parsed segment tree and collects every `<filter>` block in document order.
+ * Filters may appear at the top level or inside grids; both are surfaced.
+ */
+export function collectFilterSegments(segments: Segment[]): ParsedFilterBlock[] {
+	const out: ParsedFilterBlock[] = [];
+	for (const segment of segments) {
+		if (segment.type === 'filter') {
+			out.push(segment.filter);
+		} else if (segment.type === 'grid') {
+			out.push(...collectFilterSegments(segment.children));
+		}
+	}
+	return out;
 }

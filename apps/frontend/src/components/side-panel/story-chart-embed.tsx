@@ -5,6 +5,7 @@ import type { displayChart } from '@nao/shared/tools';
 import { Button } from '@/components/ui/button';
 import { useOptionalAgentContext } from '@/contexts/agent.provider';
 import { useStoryChartEdit } from '@/contexts/story-chart-edit';
+import { useStoryFilters } from '@/contexts/story-filters';
 import { ChartDisplay } from '@/components/tool-calls/display-chart';
 import { ChartConfigEditDialog } from '@/components/tool-calls/display-chart-edit-dialog';
 import { sortByDateKey } from '@/lib/charts.utils';
@@ -21,6 +22,7 @@ interface ChartBlock {
 
 export const StoryChartEmbed = memo(function StoryChartEmbed({ chart }: { chart: ChartBlock }) {
 	const agent = useOptionalAgentContext();
+	const filters = useStoryFilters();
 
 	const sourceData = useMemo(() => {
 		const findInMessages = (messages: UIMessage[]) => {
@@ -37,13 +39,16 @@ export const StoryChartEmbed = memo(function StoryChartEmbed({ chart }: { chart:
 		return findInMessages(agent?.messages ?? []);
 	}, [agent?.messages, chart.queryId]);
 
-	const data = useMemo(
-		() =>
-			sourceData?.data && chart.xAxisType === 'date'
-				? sortByDateKey(sourceData.data, chart.xAxisKey)
-				: (sourceData?.data ?? []),
-		[sourceData?.data, chart.xAxisType, chart.xAxisKey],
-	);
+	const data = useMemo(() => {
+		const raw = sourceData?.data ?? [];
+		const filtered = filters
+			? filters.applyToRows(chart.queryId, sourceData?.columns ?? [], raw)
+			: (raw as Record<string, unknown>[]);
+		if (chart.xAxisType === 'date') {
+			return sortByDateKey(filtered, chart.xAxisKey);
+		}
+		return filtered;
+	}, [sourceData?.data, sourceData?.columns, chart.xAxisType, chart.xAxisKey, chart.queryId, filters]);
 
 	if (!sourceData?.data || sourceData.data.length === 0) {
 		return (

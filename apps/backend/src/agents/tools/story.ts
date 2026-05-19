@@ -13,6 +13,8 @@ export default createTool<story.Input, story.Output>({
 		'Charts are embedded via <chart query_id="..." chart_type="..." x_axis_key="..." series=\'[...]\' title="..." />.',
 		'SQL result tables are embedded via <table query_id="..." title="..." />.',
 		'Use <grid cols="2">...</grid> to display charts side by side in a responsive grid.',
+		'Dynamic filters are declared via <filter id="..." label="..." field="..." type="select|multi-select|text" default="all" />',
+		'and apply their selected value to every chart/table query that contains the same `field` column.',
 		'A story can also be refered as a "canva", an "artifact" or a "report".',
 		'Users may edit stories directly; the tool result always reflects the latest version, including user edits.',
 		'Unless explicitly stated, dont use the stories to display a chart, but the display_chart tool.',

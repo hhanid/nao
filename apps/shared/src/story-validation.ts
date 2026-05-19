@@ -9,6 +9,8 @@ export interface StoryValidationError {
 
 const REQUIRED_CHART_ATTRS = ['query_id', 'chart_type', 'x_axis_key'] as const;
 const REQUIRED_TABLE_ATTRS = ['query_id'] as const;
+const REQUIRED_FILTER_ATTRS = ['id', 'field'] as const;
+const VALID_FILTER_TYPES = new Set(['select', 'multi-select', 'text']);
 
 const VALID_CHART_TYPES = new Set([
 	'bar',
@@ -37,9 +39,52 @@ export function validateStoryCode(code: string): StoryValidationError[] {
 	errors.push(...validateGridBlocks(code));
 	errors.push(...validateChartBlocks(code));
 	errors.push(...validateTableBlocks(code));
+	errors.push(...validateFilterBlocks(code));
 	errors.push(...validateUnterminatedTags(code));
 
 	return errors.sort((a, b) => a.line - b.line || a.column - b.column);
+}
+
+function validateFilterBlocks(code: string): StoryValidationError[] {
+	const errors: StoryValidationError[] = [];
+	const filterRegex = /<filter\b([^/>]*?)(\/?)>/g;
+	let match: RegExpExecArray | null;
+
+	while ((match = filterRegex.exec(code)) !== null) {
+		const [fullMatch, attrString, slash] = match;
+		const position = getPosition(code, match.index);
+		const attrs = parseChartAttributes(attrString ?? '');
+
+		if (slash !== '/') {
+			errors.push({
+				message: '<filter> tag must be self-closing — use "/>" instead of ">".',
+				line: position.line,
+				column: position.column,
+				length: fullMatch.length,
+			});
+		}
+
+		const missing = REQUIRED_FILTER_ATTRS.filter((attr) => !attrs[attr]);
+		if (missing.length > 0) {
+			errors.push({
+				message: `Filter is missing required attribute${missing.length === 1 ? '' : 's'}: ${missing.join(', ')}.`,
+				line: position.line,
+				column: position.column,
+				length: fullMatch.length,
+			});
+		}
+
+		if (attrs.type && !VALID_FILTER_TYPES.has(attrs.type)) {
+			errors.push({
+				message: `Invalid filter type "${attrs.type}". Valid types: ${[...VALID_FILTER_TYPES].join(', ')}.`,
+				line: position.line,
+				column: position.column,
+				length: fullMatch.length,
+			});
+		}
+	}
+
+	return errors;
 }
 
 function validateChartBlocks(code: string): StoryValidationError[] {
@@ -289,7 +334,7 @@ function findMatchingClose(code: string, startIndex: number): number {
 
 function validateUnterminatedTags(code: string): StoryValidationError[] {
 	const errors: StoryValidationError[] = [];
-	const tagRegex = /<(chart|table)\b[^>]*$/gm;
+	const tagRegex = /<(chart|table|filter)\b[^>]*$/gm;
 	let match: RegExpExecArray | null;
 
 	while ((match = tagRegex.exec(code)) !== null) {

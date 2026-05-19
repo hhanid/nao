@@ -209,6 +209,7 @@ export function StoryViewer({ chatId, storySlug, isReadonlyMode: readonlyProp }:
 								cacheSchedule={cacheSchedule}
 								queryData={queryData ?? null}
 								chatId={chatId}
+								storySlug={resolvedStorySlug}
 								versionKey={`${currentVersionNumber}-${cachedAt ?? ''}`}
 							/>
 						)

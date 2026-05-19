@@ -4,9 +4,11 @@ import type { ParsedTableBlock } from '@nao/shared/story-segments';
 
 import { TableDisplay } from '@/components/tool-calls/display-table';
 import { useOptionalAgentContext } from '@/contexts/agent.provider';
+import { useStoryFilters } from '@/contexts/story-filters';
 
 export const StoryTableEmbed = memo(function StoryTableEmbed({ table }: { table: ParsedTableBlock }) {
 	const agent = useOptionalAgentContext();
+	const filters = useStoryFilters();
 
 	const sourceData = useMemo(() => {
 		const findInMessages = (messages: UIMessage[]) => {
@@ -23,7 +25,15 @@ export const StoryTableEmbed = memo(function StoryTableEmbed({ table }: { table:
 		return findInMessages(agent?.messages ?? []);
 	}, [agent?.messages, table.queryId]);
 
-	if (!sourceData?.data || !Array.isArray(sourceData.data)) {
+	const filteredRows = useMemo(() => {
+		if (!sourceData?.data || !Array.isArray(sourceData.data)) {
+			return null;
+		}
+		const rows = sourceData.data as Record<string, unknown>[];
+		return filters ? filters.applyToRows(table.queryId, sourceData.columns ?? [], rows) : rows;
+	}, [sourceData?.data, sourceData?.columns, table.queryId, filters]);
+
+	if (!filteredRows) {
 		return (
 			<div className='my-2 rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground'>
 				Table data unavailable (query: {table.queryId})
@@ -33,8 +43,8 @@ export const StoryTableEmbed = memo(function StoryTableEmbed({ table }: { table:
 
 	return (
 		<TableDisplay
-			data={sourceData.data as Record<string, unknown>[]}
-			columns={sourceData.columns}
+			data={filteredRows}
+			columns={sourceData?.columns ?? []}
 			title={table.title}
 			tableContainerClassName='max-h-[28rem]'
 		/>
