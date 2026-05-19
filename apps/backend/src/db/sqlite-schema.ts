@@ -6,6 +6,7 @@ import { check, index, integer, primaryKey, sqliteTable, text, unique, uniqueInd
 
 import { AgentSettings } from '../types/agent-settings';
 import { ForkMetadata, StopReason, ToolState, UIMessagePartType } from '../types/chat';
+import { DisplaySettings } from '../types/display-settings';
 import { LLM_INFERENCE_TYPES } from '../types/llm';
 import { LOG_LEVELS, LOG_SOURCES } from '../types/log';
 import { McpEndpointSettings } from '../types/mcp-endpoint';
@@ -159,6 +160,7 @@ export const project = sqliteTable(
 		telegramSettings: text('telegram_settings', { mode: 'json' }).$type<TelegramSettings>(),
 		whatsappSettings: text('whatsapp_settings', { mode: 'json' }).$type<WhatsappSettings>(),
 		mcpEndpointSettings: text('mcp_endpoint_settings', { mode: 'json' }).$type<McpEndpointSettings>(),
+		displaySettings: text('display_settings', { mode: 'json' }).$type<DisplaySettings>(),
 
 		createdAt: integer('created_at', { mode: 'timestamp_ms' })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)

@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { z } from 'zod/v4';
 
 import * as chatQueries from '../queries/chat.queries';
+import * as projectQueries from '../queries/project.queries';
 import * as storyQueries from '../queries/story.queries';
 import { naturalLanguageToCron } from '../services/cron-nlp';
 import { executeLiveQuery, getStoryQueryData, refreshStoryData } from '../services/live-story';
@@ -213,7 +214,10 @@ export const storyRoutes = {
 				throw new TRPCError({ code: 'NOT_FOUND', message: 'Story not found.' });
 			}
 			const cache = await storyQueries.getStoryDataCacheByStoryId(input.storyId);
-			return buildDownloadResponse(input.format, story.title, story.code, cache?.queryData ?? null);
+			const displaySettings = story.projectId ? await projectQueries.getDisplaySettings(story.projectId) : null;
+			return buildDownloadResponse(input.format, story.title, story.code, cache?.queryData ?? null, {
+				dateFormat: displaySettings?.dateFormat,
+			});
 		}),
 
 	download: chatOwnerProcedure
@@ -241,6 +245,11 @@ export const storyRoutes = {
 				version.cacheSchedule,
 			);
 
-			return buildDownloadResponse(input.format, version.title, version.code, queryData);
+			const projectId = await chatQueries.getChatProjectId(input.chatId);
+			const displaySettings = projectId ? await projectQueries.getDisplaySettings(projectId) : null;
+
+			return buildDownloadResponse(input.format, version.title, version.code, queryData, {
+				dateFormat: displaySettings?.dateFormat,
+			});
 		}),
 };

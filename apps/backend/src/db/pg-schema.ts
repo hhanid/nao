@@ -18,6 +18,7 @@ import {
 
 import { AgentSettings } from '../types/agent-settings';
 import { ForkMetadata, StopReason, ToolState, UIMessagePartType } from '../types/chat';
+import { DisplaySettings } from '../types/display-settings';
 import { LLM_INFERENCE_TYPES } from '../types/llm';
 import { LOG_LEVELS, LOG_SOURCES } from '../types/log';
 import { McpEndpointSettings } from '../types/mcp-endpoint';
@@ -155,6 +156,7 @@ export const project = pgTable(
 		telegramSettings: jsonb('telegram_settings').$type<TelegramSettings>(),
 		whatsappSettings: jsonb('whatsapp_settings').$type<WhatsappSettings>(),
 		mcpEndpointSettings: jsonb('mcp_endpoint_settings').$type<McpEndpointSettings>(),
+		displaySettings: jsonb('display_settings').$type<DisplaySettings>(),
 
 		createdAt: timestamp('created_at').defaultNow().notNull(),
 		updatedAt: timestamp('updated_at')

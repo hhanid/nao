@@ -3,6 +3,7 @@ import * as pgSchema from './pg-schema';
 import * as sqliteSchema from './sqlite-schema';
 
 export type { AgentSettings } from '../types/agent-settings';
+export type { DateFormatPreset, DateFormatSettings, DisplaySettings } from '../types/display-settings';
 
 const allSchema = dbConfig.dialect === Dialect.Postgres ? pgSchema : sqliteSchema;
 

@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import { existsSync } from 'fs';
 import type { Browser } from 'puppeteer-core';
 
-import type { QueryDataMap, StoryInput } from './story-download';
+import type { BuildDownloadOptions, QueryDataMap, StoryInput } from './story-download';
 import { generateStoryHtml } from './story-html';
 
 let browserPromise: Promise<Browser> | null = null;
@@ -17,8 +17,12 @@ async function loadPuppeteer() {
 	}
 }
 
-export async function generateStoryPdf(story: StoryInput, queryData: QueryDataMap | null): Promise<Buffer> {
-	const html = generateStoryHtml(story, queryData);
+export async function generateStoryPdf(
+	story: StoryInput,
+	queryData: QueryDataMap | null,
+	options: BuildDownloadOptions = {},
+): Promise<Buffer> {
+	const html = generateStoryHtml(story, queryData, options);
 	const browser = await getBrowser();
 	const page = await browser.newPage();
 

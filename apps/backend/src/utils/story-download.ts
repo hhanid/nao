@@ -1,3 +1,4 @@
+import type { DateFormatSettings } from '@nao/shared/date';
 import type { DownloadFormat } from '@nao/shared/types';
 
 import { generateStoryHtml } from './story-html';
@@ -10,6 +11,10 @@ export interface StoryInput {
 	code: string;
 }
 
+export interface BuildDownloadOptions {
+	dateFormat?: DateFormatSettings | null;
+}
+
 const MIME_TYPES: Record<DownloadFormat, string> = {
 	pdf: 'application/pdf',
 	html: 'text/html',
@@ -20,9 +25,10 @@ export async function buildDownloadResponse(
 	title: string,
 	code: string,
 	queryData: QueryDataMap | null,
+	options: BuildDownloadOptions = {},
 ): Promise<{ data: string; filename: string; mimeType: string }> {
 	const story = { title, code };
-	const buffer = await generateStoryBuffer(format, story, queryData);
+	const buffer = await generateStoryBuffer(format, story, queryData, options);
 
 	return {
 		data: buffer.toString('base64'),
@@ -35,12 +41,13 @@ async function generateStoryBuffer(
 	format: DownloadFormat,
 	story: StoryInput,
 	queryData: QueryDataMap | null,
+	options: BuildDownloadOptions,
 ): Promise<Buffer> {
 	switch (format) {
 		case 'pdf':
-			return generateStoryPdf(story, queryData);
+			return generateStoryPdf(story, queryData, options);
 		case 'html':
-			return Buffer.from(generateStoryHtml(story, queryData));
+			return Buffer.from(generateStoryHtml(story, queryData, options));
 	}
 }
 
