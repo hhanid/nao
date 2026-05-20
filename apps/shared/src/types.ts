@@ -57,10 +57,32 @@ export type FileTreeEntry = {
 export const ALLOWED_IMAGE_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
 export type ImageMediaType = (typeof ALLOWED_IMAGE_MEDIA_TYPES)[number];
 
+export const ALLOWED_FILE_MEDIA_TYPES = [
+	...ALLOWED_IMAGE_MEDIA_TYPES,
+	'application/pdf',
+	'text/plain',
+	'text/csv',
+	'text/markdown',
+	'application/json',
+	'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+	'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+	'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+] as const;
+export type FileMediaType = (typeof ALLOWED_FILE_MEDIA_TYPES)[number];
+
 export type ImageUploadData = {
 	mediaType: ImageMediaType;
 	data: string;
 };
+
+export type FileUploadData = {
+	mediaType: string;
+	data: string;
+	filename: string;
+};
+
+export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+export const MAX_FILES = 5;
 
 export const WARNING_BUDGET_THRESHOLD = 0.8;
 export const MAX_BUDGET_LIMIT_USD = 200_000;

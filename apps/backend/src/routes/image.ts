@@ -1,7 +1,7 @@
 import { z } from 'zod/v4';
 
 import type { App } from '../app';
-import { getImageById } from '../queries/image.queries';
+import { getFileBuffer } from '../queries/image.queries';
 import { HandlerError } from '../utils/error';
 
 const paramsSchema = z.object({
@@ -12,19 +12,18 @@ export const imageRoutes = async (app: App) => {
 	app.get('/:imageId', { schema: { params: paramsSchema } }, async (request, reply) => {
 		const { imageId } = request.params;
 
-		const image = await getImageById(imageId);
-		if (!image) {
-			throw new HandlerError('NOT_FOUND', 'Image not found');
+		const file = await getFileBuffer(imageId);
+		if (!file) {
+			throw new HandlerError('NOT_FOUND', 'File not found');
 		}
 
-		if (!image.mediaType.startsWith('image/')) {
-			throw new HandlerError('BAD_REQUEST', 'Invalid media type');
+		reply.header('Content-Type', file.mediaType);
+		reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+
+		if (!file.mediaType.startsWith('image/')) {
+			reply.header('Content-Disposition', 'inline');
 		}
 
-		const buffer = Buffer.from(image.data, 'base64');
-		return reply
-			.header('Content-Type', image.mediaType)
-			.header('Cache-Control', 'public, max-age=31536000, immutable')
-			.send(buffer);
+		return reply.send(file.data);
 	});
 };

@@ -732,8 +732,10 @@ export const messageImage = pgTable('message_image', {
 	id: text('id')
 		.$defaultFn(() => crypto.randomUUID())
 		.primaryKey(),
-	data: text('data').notNull(),
+	data: text('data'),
 	mediaType: text('media_type').notNull(),
+	filename: text('filename'),
+	size: integer('size'),
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

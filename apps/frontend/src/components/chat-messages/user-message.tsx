@@ -1,5 +1,5 @@
 import { memo, useMemo, useRef, useState } from 'react';
-import { Pencil, Check, Copy, Table } from 'lucide-react';
+import { Pencil, Check, Copy, Table, FileText } from 'lucide-react';
 import { Message } from 'prompt-mentions';
 import { useQuery } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
@@ -13,7 +13,7 @@ import { useClickOutside } from '@/hooks/use-click-outside';
 import { ChatInputInline } from '@/components/chat-input';
 import { ChatMessagesCitationChip } from '@/components/chat-messages/chat-messages-citation-chip';
 import { ImageLightbox } from '@/components/image-lightbox';
-import { getMessageText, getMessageImages } from '@/lib/ai';
+import { getMessageText, getMessageImages, getMessageFiles } from '@/lib/ai';
 import { parseChatMessageCitation } from '@/lib/chat-messages-citation-parser';
 import { Button } from '@/components/ui/button';
 import { editedMessageIdStore } from '@/stores/chat-edited-message';
@@ -99,6 +99,7 @@ function useMentionConfigs(): MessageMentionConfig[] {
 export const UserMessageBubble = memo(({ message }: { message: UIMessage }) => {
 	const rawText = useMemo(() => getMessageText(message), [message]);
 	const images = useMemo(() => getMessageImages(message), [message]);
+	const files = useMemo(() => getMessageFiles(message), [message]);
 	const mentionConfigs = useMentionConfigs();
 	const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
@@ -128,6 +129,22 @@ export const UserMessageBubble = memo(({ message }: { message: UIMessage }) => {
 						>
 							<img src={img.url} alt='' className='max-w-48 max-h-48 rounded-lg object-cover' />
 						</button>
+					))}
+				</div>
+			)}
+			{files.length > 0 && (
+				<div className='flex gap-2 flex-wrap mb-2'>
+					{files.map((file, idx) => (
+						<a
+							key={idx}
+							href={file.url}
+							target='_blank'
+							rel='noopener noreferrer'
+							className='flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs hover:bg-muted transition-colors'
+						>
+							<FileText className='size-4 shrink-0 text-muted-foreground' />
+							<span className='truncate max-w-32'>{file.mediaType.split('/').pop()}</span>
+						</a>
 					))}
 				</div>
 			)}

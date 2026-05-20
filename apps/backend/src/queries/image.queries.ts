@@ -1,7 +1,8 @@
 import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 
-import s, { NewMessageImage } from '../db/abstractSchema';
+import s from '../db/abstractSchema';
 import { db } from '../db/db';
+import { storage } from '../storage';
 
 export interface ChatImage {
 	id: string;
@@ -10,10 +11,9 @@ export interface ChatImage {
 }
 
 export const getImagesByChatId = async (chatId: string): Promise<ChatImage[]> => {
-	return db
+	const rows = await db
 		.select({
 			id: s.messageImage.id,
-			data: s.messageImage.data,
 			mediaType: s.messageImage.mediaType,
 		})
 		.from(s.messagePart)
@@ -23,10 +23,29 @@ export const getImagesByChatId = async (chatId: string): Promise<ChatImage[]> =>
 			and(eq(s.chatMessage.chatId, chatId), isNotNull(s.messagePart.imageId), isNull(s.chatMessage.supersededAt)),
 		)
 		.execute();
+
+	const results: ChatImage[] = [];
+	for (const row of rows) {
+		const file = await storage.get(row.id);
+		if (file) {
+			results.push({
+				id: row.id,
+				data: file.data.toString('base64'),
+				mediaType: row.mediaType,
+			});
+		}
+	}
+	return results;
 };
 
-export const saveImage = async (image: NewMessageImage): Promise<{ id: string }> => {
-	const [row] = await db.insert(s.messageImage).values(image).returning({ id: s.messageImage.id }).execute();
+export const saveImage = async (image: { mediaType: string; data: string }): Promise<{ id: string }> => {
+	const [row] = await db
+		.insert(s.messageImage)
+		.values({ mediaType: image.mediaType })
+		.returning({ id: s.messageImage.id })
+		.execute();
+
+	await storage.put(row.id, Buffer.from(image.data, 'base64'), image.mediaType);
 	return row;
 };
 
@@ -37,18 +56,51 @@ export const saveImages = async (
 		return [];
 	}
 
-	return db
+	const rows = await db
 		.insert(s.messageImage)
-		.values(images)
+		.values(images.map((img) => ({ mediaType: img.mediaType })))
 		.returning({ id: s.messageImage.id, mediaType: s.messageImage.mediaType })
 		.execute();
+
+	await Promise.all(rows.map((row, i) => storage.put(row.id, Buffer.from(images[i].data, 'base64'), row.mediaType)));
+
+	return rows;
 };
 
 export const getImageById = async (id: string): Promise<{ data: string; mediaType: string } | undefined> => {
 	const [row] = await db
-		.select({ data: s.messageImage.data, mediaType: s.messageImage.mediaType })
+		.select({ mediaType: s.messageImage.mediaType })
 		.from(s.messageImage)
 		.where(eq(s.messageImage.id, id))
 		.execute();
-	return row;
+
+	if (!row) {
+		return undefined;
+	}
+
+	const file = await storage.get(id);
+	if (!file) {
+		return undefined;
+	}
+
+	return { data: file.data.toString('base64'), mediaType: row.mediaType };
+};
+
+export const getFileBuffer = async (id: string): Promise<{ data: Buffer; mediaType: string } | undefined> => {
+	const [row] = await db
+		.select({ mediaType: s.messageImage.mediaType })
+		.from(s.messageImage)
+		.where(eq(s.messageImage.id, id))
+		.execute();
+
+	if (!row) {
+		return undefined;
+	}
+
+	const file = await storage.get(id);
+	if (!file) {
+		return undefined;
+	}
+
+	return { data: file.data, mediaType: row.mediaType };
 };

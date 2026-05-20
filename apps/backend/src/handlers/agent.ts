@@ -1,4 +1,4 @@
-import type { ImageUploadData } from '@nao/shared/types';
+import type { FileUploadData, ImageUploadData } from '@nao/shared/types';
 
 import { noProjectMessage } from '../env';
 import * as chatQueries from '../queries/chat.queries';
@@ -37,8 +37,8 @@ export const handleAgentRoute = async (opts: HandleAgentMessageInput): Promise<H
 	let newMessageId: string;
 
 	if (!chatId) {
-		const imageParts = await saveAndBuildImageParts(message.images);
-		const [createdChat, createdMessage] = await createChat(userId, projectId, message, imageParts);
+		const fileParts = await saveAndBuildFileParts(message.images, message.files);
+		const [createdChat, createdMessage] = await createChat(userId, projectId, message, fileParts);
 		chatId = createdChat.id;
 		newMessageId = createdMessage.id;
 	} else {
@@ -92,30 +92,40 @@ export const handleAgentRoute = async (opts: HandleAgentMessageInput): Promise<H
 	};
 };
 
-async function saveAndBuildImageParts(images: ImageUploadData[] | undefined): Promise<UIMessagePart[]> {
-	if (!images?.length) {
-		return [];
+async function saveAndBuildFileParts(
+	images: ImageUploadData[] | undefined,
+	files: FileUploadData[] | undefined,
+): Promise<UIMessagePart[]> {
+	const parts: UIMessagePart[] = [];
+
+	if (images?.length) {
+		const savedImages = await imageQueries.saveImages(images);
+		for (const { id, mediaType } of savedImages) {
+			parts.push({ type: 'file' as const, mediaType, url: buildImageUrl(id) });
+		}
 	}
 
-	const savedImages = await imageQueries.saveImages(images);
-	return savedImages.map(({ id, mediaType }) => ({
-		type: 'file' as const,
-		mediaType,
-		url: buildImageUrl(id),
-	}));
+	if (files?.length) {
+		const savedFiles = await imageQueries.saveImages(files.map((f) => ({ mediaType: f.mediaType, data: f.data })));
+		for (const { id, mediaType } of savedFiles) {
+			parts.push({ type: 'file' as const, mediaType, url: buildImageUrl(id) });
+		}
+	}
+
+	return parts;
 }
 
 const createChat = async (
 	userId: string,
 	projectId: string,
 	message: AgentRequestUserMessage,
-	imageParts: UIMessagePart[],
+	fileParts: UIMessagePart[],
 ) => {
 	const title = createChatTitle(message);
 	return await chatQueries.createChat(
 		{ title, userId, projectId },
 		{ text: message.text, citation: message.citation },
-		imageParts,
+		fileParts,
 	);
 };
 
@@ -135,14 +145,14 @@ const insertOrSupersedeMessage = async (opts: {
 		throw new HandlerError('FORBIDDEN', 'You are not authorized to access this chat.');
 	}
 
-	const imageParts = await saveAndBuildImageParts(message.images);
+	const fileParts = await saveAndBuildFileParts(message.images, message.files);
 
 	if (messageToEditId) {
 		await chatQueries.supersedeMessagesFrom(chatId, messageToEditId);
 	}
 	return chatQueries.upsertMessage({
 		role: 'user',
-		parts: [{ type: 'text', text: message.text }, ...imageParts],
+		parts: [{ type: 'text', text: message.text }, ...fileParts],
 		chatId,
 		source: 'web',
 		citation: message.citation,

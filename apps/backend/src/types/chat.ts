@@ -1,4 +1,4 @@
-import { ALLOWED_IMAGE_MEDIA_TYPES, type CitationData } from '@nao/shared/types';
+import { ALLOWED_FILE_MEDIA_TYPES, ALLOWED_IMAGE_MEDIA_TYPES, type CitationData } from '@nao/shared/types';
 import {
 	DynamicToolUIPart,
 	FinishReason,
@@ -137,6 +137,12 @@ export const AgentRequestImageSchema = z.object({
 	data: z.string().min(1),
 });
 
+export const AgentRequestFileSchema = z.object({
+	mediaType: z.enum(ALLOWED_FILE_MEDIA_TYPES),
+	data: z.string().min(1),
+	filename: z.string().min(1),
+});
+
 const CitationDataSchema = z.object({
 	start: z.number(),
 	end: z.number(),
@@ -148,6 +154,7 @@ export type AgentRequestUserMessage = z.infer<typeof AgentRequestUserMessageSche
 export const AgentRequestUserMessageSchema = z.object({
 	text: z.string(),
 	images: z.array(AgentRequestImageSchema).optional(),
+	files: z.array(AgentRequestFileSchema).optional(),
 	citation: CitationDataSchema.optional(),
 });
 

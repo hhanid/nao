@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, PencilRuler, Database, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { Plus, PencilRuler, Database, Paperclip, AlertTriangle } from 'lucide-react';
 import { Button, ChatButton, MicButton } from './ui/button';
 import { SlidingWaveform } from './chat-input-sliding-waveform';
 import { ChatPrompt, STORY_MENTION_ID, DATABASE_MENTION_TRIGGER } from './chat-input-prompt';
 import { ChatInputModelSelect } from './chat-input-model-select';
 import { ChatInputMessageQueue } from './chat-input-message-queue';
-import { ChatInputImagePreview } from './chat-input-image-preview';
+import { ChatInputFilePreview } from './chat-input-file-preview';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import StoryIcon from './ui/story-icon';
 import type { PromptHandle, SelectedMention } from 'prompt-mentions';
@@ -20,7 +20,7 @@ import { trpc } from '@/main';
 import { useAgentContext } from '@/contexts/agent.provider';
 import { useRegisterSetChatInputCallback } from '@/contexts/set-chat-input-callback';
 import { useTranscribe } from '@/hooks/use-transcribe';
-import { useImageUpload } from '@/hooks/use-image-upload';
+import { useFileUpload } from '@/hooks/use-file-upload';
 import { parseBudgetError } from '@/lib/ai';
 import { cn } from '@/lib/utils';
 import { useChatId } from '@/hooks/use-chat-id';
@@ -88,7 +88,7 @@ function ChatInputBase({
 	const { isRunning, stopAgent, isLoadingMessages, setMentions, submitQueuedMessageNow, error, selectedModel } =
 		useAgentContext();
 	const chatId = useChatId();
-	const imageUpload = useImageUpload();
+	const fileUpload = useFileUpload();
 	const effectivePlaceholder = isRunning && allowQueueing ? 'Add a follow-up...' : placeholder;
 
 	const agentSettings = useQuery(trpc.project.getAgentSettings.queryOptions());
@@ -144,7 +144,7 @@ function ChatInputBase({
 			dragCounter = 0;
 			setIsDragging(false);
 			if (e.dataTransfer?.files) {
-				imageUpload.addFiles(e.dataTransfer.files);
+				fileUpload.addFiles(e.dataTransfer.files);
 			}
 		};
 
@@ -158,17 +158,17 @@ function ChatInputBase({
 			el.removeEventListener('dragover', handleDragOver);
 			el.removeEventListener('drop', handleDrop);
 		};
-	}, [imageUpload.addFiles]); // eslint-disable-line
+	}, [fileUpload.addFiles]); // eslint-disable-line
 
 	useEffect(() => {
 		const handler = (e: ClipboardEvent) => {
 			if (dropZoneRef.current?.contains(e.target as Node)) {
-				imageUpload.handlePaste(e);
+				fileUpload.handlePaste(e);
 			}
 		};
 		document.addEventListener('paste', handler);
 		return () => document.removeEventListener('paste', handler);
-	}, [imageUpload.handlePaste]); // eslint-disable-line
+	}, [fileUpload.handlePaste]); // eslint-disable-line
 
 	const showMicWarning = useCallback(() => {
 		setMicWarning(true);
@@ -182,7 +182,7 @@ function ChatInputBase({
 			const citationSnapshot = chatPendingCitationStore.getSnapshot();
 			const hasCitation = !!citationSnapshot && citationSnapshot.chatId === chatId;
 
-			if (!trimmedInput && !imageUpload.hasImages && !hasCitation) {
+			if (!trimmedInput && !fileUpload.hasFiles && !hasCitation) {
 				if (isRunning && allowQueueing) {
 					const queue = messageQueueStore.getSnapshot(chatId);
 					if (queue?.length) {
@@ -212,12 +212,24 @@ function ChatInputBase({
 			promptRef.current?.clear();
 			setInputText('');
 
-			const images = imageUpload.getImagesForUpload();
-			imageUpload.clearImages();
+			const uploadedFiles = fileUpload.getFilesForUpload();
+			fileUpload.clearFiles();
+
+			const imageFiles = uploadedFiles.filter((f) => f.mediaType.startsWith('image/'));
+			const nonImageFiles = uploadedFiles.filter((f) => !f.mediaType.startsWith('image/'));
+
+			const hasAttachments = uploadedFiles.length > 0;
+			const hasOnlyImages = imageFiles.length > 0 && nonImageFiles.length === 0;
 
 			await onSubmitMessage({
-				text: trimmedInput || (images.length > 0 ? 'Describe this image' : ''),
-				images: images.length > 0 ? images : undefined,
+				text:
+					trimmedInput ||
+					(hasAttachments ? (hasOnlyImages ? 'Describe this image' : 'Here are my files') : ''),
+				images:
+					imageFiles.length > 0
+						? imageFiles.map((f) => ({ mediaType: f.mediaType as 'image/png', data: f.data }))
+						: undefined,
+				files: nonImageFiles.length > 0 ? nonImageFiles : undefined,
 				citation,
 			});
 		},
@@ -228,7 +240,7 @@ function ChatInputBase({
 			isBudgetExceeded,
 			setMentions,
 			promptRef,
-			imageUpload,
+			fileUpload,
 			chatId,
 			submitQueuedMessageNow,
 		],
@@ -258,7 +270,7 @@ function ChatInputBase({
 		await submitMessage(inputText, mentions);
 	};
 	const pendingCitation = useChatPendingCitation(chatId);
-	const isInputEmpty = !inputText.trim() && !imageUpload.hasImages && !pendingCitation;
+	const isInputEmpty = !inputText.trim() && !fileUpload.hasFiles && !pendingCitation;
 
 	const skills = useQuery(trpc.skill.list.queryOptions());
 	const databaseObjects = useQuery(trpc.project.getDatabaseObjects.queryOptions());
@@ -293,7 +305,7 @@ function ChatInputBase({
 					htmlFor='chat-input'
 					className={cn('dark:bg-muted', isDragging && 'ring-2 ring-primary/50 border-primary')}
 				>
-					<ChatInputImagePreview images={imageUpload.images} onRemove={imageUpload.removeImage} />
+					<ChatInputFilePreview files={fileUpload.files} onRemove={fileUpload.removeFile} />
 					<ChatPrompt
 						promptRef={promptRef}
 						placeholder={effectivePlaceholder}
@@ -302,12 +314,12 @@ function ChatInputBase({
 					/>
 
 					<input
-						ref={imageUpload.fileInputRef}
+						ref={fileUpload.fileInputRef}
 						type='file'
-						accept='image/png,image/jpeg,image/gif,image/webp'
+						accept='image/png,image/jpeg,image/gif,image/webp,application/pdf,text/plain,text/csv,text/markdown,application/json,.xlsx,.docx,.pptx'
 						multiple
 						className='hidden'
-						onChange={imageUpload.handleFileInputChange}
+						onChange={fileUpload.handleFileInputChange}
 					/>
 
 					<InputGroupAddon align='block-end'>
@@ -319,7 +331,7 @@ function ChatInputBase({
 							<ChatInputPlusMenu
 								hasDatabases={hasDatabases}
 								hasSkills={hasSkills}
-								onAddImage={imageUpload.openFilePicker}
+								onAddFile={fileUpload.openFilePicker}
 								onAddStory={() => {
 									promptRef.current?.appendMention(
 										{ id: STORY_MENTION_ID, label: 'Story mode' },
@@ -410,7 +422,7 @@ function BudgetBanner() {
 function ChatInputPlusMenu({
 	hasDatabases,
 	hasSkills,
-	onAddImage,
+	onAddFile,
 	onAddStory,
 	onOpenSkills,
 	onOpenDatabase,
@@ -418,7 +430,7 @@ function ChatInputPlusMenu({
 }: {
 	hasDatabases: boolean;
 	hasSkills: boolean;
-	onAddImage: () => void;
+	onAddFile: () => void;
 	onAddStory: () => void;
 	onOpenSkills: () => void;
 	onOpenDatabase: () => void;
@@ -445,9 +457,9 @@ function ChatInputPlusMenu({
 					requestAnimationFrame(onFocusPrompt);
 				}}
 			>
-				<DropdownMenuItem onSelect={onAddImage}>
-					<ImageIcon className='size-4' />
-					<span>Upload image</span>
+				<DropdownMenuItem onSelect={onAddFile}>
+					<Paperclip className='size-4' />
+					<span>Upload file</span>
 				</DropdownMenuItem>
 				{hasDatabases && (
 					<DropdownMenuItem onSelect={onOpenDatabase}>

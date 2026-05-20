@@ -777,8 +777,10 @@ export const messageImage = sqliteTable('message_image', {
 	id: text('id')
 		.$defaultFn(() => crypto.randomUUID())
 		.primaryKey(),
-	data: text('data').notNull(),
+	data: text('data'),
 	mediaType: text('media_type').notNull(),
+	filename: text('filename'),
+	size: integer('size'),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' })
 		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 		.notNull(),

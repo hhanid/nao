@@ -9,13 +9,14 @@ import { usePrevRef } from './use-prev';
 import { useMemoObject } from './useMemoObject';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { UIMessage } from '@nao/backend/chat';
-import type { CitationData, ImageUploadData, LlmSelectedModel } from '@nao/shared/types';
+import type { CitationData, FileUploadData, ImageUploadData, LlmSelectedModel } from '@nao/shared/types';
 import type { FileUIPart, InferUIMessageChunk } from 'ai';
 import type { MentionOption } from 'prompt-mentions';
 
 import { getActiveProjectId } from '@/lib/active-project';
 import {
 	checkIsAgentRunning,
+	extractFilesFromMessage,
 	extractImagesFromMessage,
 	getLastUserMessageIdx,
 	getTextFromUserMessageOrThrow,
@@ -51,6 +52,7 @@ export interface AgentHelpers {
 export interface SendMessageArgs {
 	text: string;
 	images?: ImageUploadData[];
+	files?: FileUploadData[];
 	citation?: CitationData;
 }
 
@@ -134,6 +136,7 @@ export const useAgent = ({ disableNavigation = false }: { disableNavigation?: bo
 					mentionsRef.current = [];
 					const citation = agentCitationStore.get(newAgent);
 					const images = extractImagesFromMessage(messageToSend);
+					const files = extractFilesFromMessage(messageToSend);
 					return {
 						headers: getActiveProjectId() ? { 'x-nao-project-id': getActiveProjectId()! } : undefined,
 						body: {
@@ -142,6 +145,7 @@ export const useAgent = ({ disableNavigation = false }: { disableNavigation?: bo
 							message: {
 								text: getTextFromUserMessageOrThrow(messageToSend),
 								images: images.length > 0 ? images : undefined,
+								files: files.length > 0 ? files : undefined,
 								citation,
 							},
 							model: selectedModelRef.current ?? undefined,
@@ -228,17 +232,19 @@ export const useAgent = ({ disableNavigation = false }: { disableNavigation?: bo
 	);
 
 	const queueOrSendMessage = useCallback(
-		async ({ text, images, citation }: SendMessageArgs) => {
-			if (!text.trim() && !images?.length) {
+		async ({ text, images, files: uploadedFiles, citation }: SendMessageArgs) => {
+			const hasAttachments = !!(images?.length || uploadedFiles?.length);
+			if (!text.trim() && !hasAttachments) {
 				return;
 			}
 
 			if (!isRunning) {
 				agentCitationStore.set(agentInstance, citation);
-				const files = imagesToFileUIParts(images);
+				const fileParts = imagesToFileUIParts(images);
 				return handleSendMessage({
-					text: text || (images?.length ? 'Describe this image' : ''),
-					files: files.length > 0 ? files : undefined,
+					text:
+						text || (hasAttachments ? (images?.length ? 'Describe this image' : 'Here are my files') : ''),
+					files: fileParts.length > 0 ? fileParts : undefined,
 				});
 			}
 
