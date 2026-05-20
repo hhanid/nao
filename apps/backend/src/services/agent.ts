@@ -398,7 +398,7 @@ class AgentManager {
 		const uiMessagesWithCitation = this._addCitationContext(uiMessagesWithSkills);
 		const uiMessagesWithDbContext = this._addDatabaseContext(uiMessagesWithCitation, mentions);
 		const uiMessagesWithCompaction = compactionService.useLastCompaction(uiMessagesWithDbContext);
-		const uiMessagesWithResolvedImages = await resolveImageUrls(uiMessagesWithCompaction);
+		const uiMessagesWithResolvedImages = await resolveFileUrls(uiMessagesWithCompaction);
 
 		const memories = await memoryService.safeGetUserMemories(this.chat.userId, this.chat.projectId, this.chat.id);
 		const userRules = getUserRules(this._toolContext.projectFolder);
@@ -767,64 +767,89 @@ class AgentManager {
 	}
 }
 
-const IMAGE_URL_PATTERN = /^\/i\/([a-f0-9-]+)$/;
+const FILE_URL_PATTERN = /^\/i\/([a-f0-9-]+)$/;
 
 type MessageLike = Omit<UIMessage, 'id'>;
 
+const TEXT_MEDIA_TYPES = new Set(['text/plain', 'text/csv', 'text/markdown', 'application/json']);
+
+const MAX_TEXT_FILE_SIZE = 100 * 1024; // 100 KB — inline as text for the model
+
+function isImageMediaType(mediaType: string): boolean {
+	return mediaType.startsWith('image/');
+}
+
+function isTextMediaType(mediaType: string): boolean {
+	return TEXT_MEDIA_TYPES.has(mediaType);
+}
+
 /**
- * Replaces server-relative image URLs (/i/{id}) with raw base64 data so the
- * model provider receives the actual image content inline.
- *
- * The AI SDK's `convertToModelMessages` maps `FileUIPart.url` → `FilePart.data`.
- * A data-URL string (data:…) would be misinterpreted as a downloadable URL,
- * so we pass the plain base64 string instead — the mediaType is already a
- * separate field on the part.
+ * Resolves server-relative file URLs (/i/{id}) for the model:
+ * - Images: replaced with raw base64 data (sent inline to vision models)
+ * - Small text files (≤100 KB): converted to a text part with file content
+ * - Large text files or binary files (PDF, XLSX, etc.): replaced with a text
+ *   part noting the file was attached but content is too large/binary to inline
  */
-async function resolveImageUrls<T extends MessageLike>(messages: T[]): Promise<T[]> {
-	const imageIds = new Set<string>();
+async function resolveFileUrls<T extends MessageLike>(messages: T[]): Promise<T[]> {
+	const fileIds = new Set<string>();
 	for (const message of messages) {
 		for (const part of message.parts) {
 			if (part.type === 'file') {
-				const match = part.url.match(IMAGE_URL_PATTERN);
+				const match = part.url.match(FILE_URL_PATTERN);
 				if (match) {
-					imageIds.add(match[1]);
+					fileIds.add(match[1]);
 				}
 			}
 		}
 	}
 
-	if (imageIds.size === 0) {
+	if (fileIds.size === 0) {
 		return messages;
 	}
 
-	const imageDataMap = new Map<string, string>();
+	const fileDataMap = new Map<string, { data: string; mediaType: string }>();
 	await Promise.all(
-		[...imageIds].map(async (id) => {
-			const image = await imageQueries.getImageById(id);
-			if (image) {
-				imageDataMap.set(id, image.data);
+		[...fileIds].map(async (id) => {
+			const file = await imageQueries.getImageById(id);
+			if (file) {
+				fileDataMap.set(id, file);
 			}
 		}),
 	);
 
 	return messages.map((message) => ({
 		...message,
-		parts: message.parts.map((part) => {
+		parts: message.parts.flatMap((part): UIMessagePart[] => {
 			if (part.type !== 'file') {
-				return part;
+				return [part];
 			}
-			const match = part.url.match(IMAGE_URL_PATTERN);
+			const match = part.url.match(FILE_URL_PATTERN);
 			if (!match) {
-				return part;
+				return [part];
 			}
-			const base64Data = imageDataMap.get(match[1]);
-			if (!base64Data) {
-				return part;
+			const file = fileDataMap.get(match[1]);
+			if (!file) {
+				return [part];
 			}
-			return {
-				...part,
-				url: base64Data,
-			};
+
+			if (isImageMediaType(part.mediaType)) {
+				return [{ ...part, url: file.data }];
+			}
+
+			const rawBytes = Buffer.from(file.data, 'base64');
+
+			if (isTextMediaType(part.mediaType) && rawBytes.length <= MAX_TEXT_FILE_SIZE) {
+				const textContent = rawBytes.toString('utf-8');
+				return [{ type: 'text' as const, text: `<file type="${part.mediaType}">\n${textContent}\n</file>` }];
+			}
+
+			const sizeKb = Math.round(rawBytes.length / 1024);
+			return [
+				{
+					type: 'text' as const,
+					text: `[Attached file: ${part.mediaType}, ${sizeKb} KB — content not inlined due to size or binary format]`,
+				},
+			];
 		}),
 	}));
 }

@@ -16,7 +16,6 @@ import type { MentionOption } from 'prompt-mentions';
 import { getActiveProjectId } from '@/lib/active-project';
 import {
 	checkIsAgentRunning,
-	extractFilesFromMessage,
 	extractImagesFromMessage,
 	getLastUserMessageIdx,
 	getTextFromUserMessageOrThrow,
@@ -59,6 +58,7 @@ export interface SendMessageArgs {
 export const selectedModelStorage = createLocalStorage<LlmSelectedModel>('nao-selected-model');
 
 const agentCitationStore = new WeakMap<Agent<UIMessage>, CitationData | undefined>();
+const agentFilesStore = new WeakMap<Agent<UIMessage>, FileUploadData[] | undefined>();
 
 export const useAgent = ({ disableNavigation = false }: { disableNavigation?: boolean } = {}): AgentHelpers => {
 	const navigate = useNavigate();
@@ -135,8 +135,9 @@ export const useAgent = ({ disableNavigation = false }: { disableNavigation?: bo
 					const mentions = mentionsRef.current;
 					mentionsRef.current = [];
 					const citation = agentCitationStore.get(newAgent);
+					const pendingFiles = agentFilesStore.get(newAgent);
+					agentFilesStore.delete(newAgent);
 					const images = extractImagesFromMessage(messageToSend);
-					const files = extractFilesFromMessage(messageToSend);
 					return {
 						headers: getActiveProjectId() ? { 'x-nao-project-id': getActiveProjectId()! } : undefined,
 						body: {
@@ -145,7 +146,7 @@ export const useAgent = ({ disableNavigation = false }: { disableNavigation?: bo
 							message: {
 								text: getTextFromUserMessageOrThrow(messageToSend),
 								images: images.length > 0 ? images : undefined,
-								files: files.length > 0 ? files : undefined,
+								files: pendingFiles?.length ? pendingFiles : undefined,
 								citation,
 							},
 							model: selectedModelRef.current ?? undefined,
@@ -161,7 +162,7 @@ export const useAgent = ({ disableNavigation = false }: { disableNavigation?: bo
 				const next = canSendNextMessage ? messageQueueStore.dequeue(agentId) : undefined;
 				if (next) {
 					mentionsRef.current = next.mentions;
-					const files = imagesToFileUIParts(next.images);
+					const files = toFileUIParts(next.images, next.files);
 					newAgent.sendMessage({ text: next.text, files: files.length > 0 ? files : undefined });
 				} else {
 					chatActivityStore.setRunning(agentId, false);
@@ -240,7 +241,8 @@ export const useAgent = ({ disableNavigation = false }: { disableNavigation?: bo
 
 			if (!isRunning) {
 				agentCitationStore.set(agentInstance, citation);
-				const fileParts = imagesToFileUIParts(images);
+				agentFilesStore.set(agentInstance, uploadedFiles);
+				const fileParts = toFileUIParts(images, uploadedFiles);
 				return handleSendMessage({
 					text:
 						text || (hasAttachments ? (images?.length ? 'Describe this image' : 'Here are my files') : ''),
@@ -255,6 +257,7 @@ export const useAgent = ({ disableNavigation = false }: { disableNavigation?: bo
 				text,
 				mentions,
 				images,
+				files: uploadedFiles,
 			});
 		},
 		[isRunning, handleSendMessage, agentInstance],
@@ -351,15 +354,27 @@ export const useSyncMessages = ({ agent }: { agent: AgentHelpers }) => {
 	}, [agent.isRunning, setChat, chatId]);
 };
 
-function imagesToFileUIParts(images?: ImageUploadData[]): FileUIPart[] {
-	if (!images?.length) {
-		return [];
+function toFileUIParts(images?: ImageUploadData[], files?: FileUploadData[]): FileUIPart[] {
+	const parts: FileUIPart[] = [];
+	if (images?.length) {
+		for (const img of images) {
+			parts.push({
+				type: 'file' as const,
+				mediaType: img.mediaType,
+				url: `data:${img.mediaType};base64,${img.data}`,
+			});
+		}
 	}
-	return images.map((img) => ({
-		type: 'file' as const,
-		mediaType: img.mediaType,
-		url: `data:${img.mediaType};base64,${img.data}`,
-	}));
+	if (files?.length) {
+		for (const file of files) {
+			parts.push({
+				type: 'file' as const,
+				mediaType: file.mediaType,
+				url: `data:${file.mediaType};base64,${file.data}`,
+			});
+		}
+	}
+	return parts;
 }
 
 /** Dispose inactive agents to free up memory */
