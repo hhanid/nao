@@ -316,6 +316,13 @@
       "when": 1779815381971,
       "tag": "0044_activity",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1779987258308,
+      "tag": "0045_add_display_settings",
+      "breakpoints": true
     }
   ]
 }

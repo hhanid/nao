@@ -374,6 +374,8 @@ function renderTooltipScript(datePattern: string): string {
 	return TOOLTIP_SCRIPT_TEMPLATE.replace('__DATE_PATTERN__', escapedPattern);
 }
 
+const TOOLTIP_SCRIPT_TEMPLATE = `
+(function(){
 	var PIE_COLORS=${JSON.stringify(DEFAULT_COLORS)};
 	var DATE_PATTERN=__DATE_PATTERN__;
 	var MONTHS_LONG=['January','February','March','April','May','June','July','August','September','October','November','December'];
