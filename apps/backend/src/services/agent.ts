@@ -45,7 +45,13 @@ import {
 import type { ModelCosts } from '../types/llm';
 import { Provider } from '../types/messaging-provider';
 import { ToolContext } from '../types/tools';
-import { convertToCost, convertToTokenUsage, findLastUserMessage, getLastUserMessageText } from '../utils/ai';
+import {
+	convertToCost,
+	convertToTokenUsage,
+	findLastUserMessage,
+	getLastUserMessageText,
+	settleInterruptedToolParts,
+} from '../utils/ai';
 import { assertBudgetNotExceeded } from '../utils/budget';
 import { HandlerError } from '../utils/error';
 import {
@@ -367,8 +373,9 @@ class AgentManager {
 				try {
 					const stopReason = e.isAborted ? 'interrupted' : e.finishReason;
 					const tokenUsage = await this._getTotalUsage(result);
+					const [settledMessage] = settleInterruptedToolParts([e.responseMessage]);
 					await chatQueries.upsertMessage({
-						...e.responseMessage,
+						...settledMessage,
 						chatId: this.chat.id,
 						stopReason,
 						error,
@@ -393,7 +400,8 @@ class AgentManager {
 		timezone?: string,
 		chatUrl?: string,
 	): Promise<ModelMessage[]> {
-		const uiMessagesWithStories = await this._syncStoryToolOutputs(uiMessages);
+		const settledUiMessages = settleInterruptedToolParts(uiMessages);
+		const uiMessagesWithStories = await this._syncStoryToolOutputs(settledUiMessages);
 		const uiMessagesWithStoryMode = this._addStoryMode(uiMessagesWithStories, mentions);
 		const uiMessagesWithSkills = this._addSkills(uiMessagesWithStoryMode, mentions);
 		const uiMessagesWithCitation = this._addCitationContext(uiMessagesWithSkills);
