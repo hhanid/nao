@@ -41,6 +41,9 @@ _EXTRAS: dict[str, list[str]] = {
     "ollama": ["ollama"],
     # Integrations
     "notion": ["notion_client", "notion2md"],
+    # Secret resolution backends
+    "aws-secrets": ["boto3", "glom"],
+    "k8s-secrets": ["kubernetes"],
 }
 
 # Providers whose extra name differs from their config value.
