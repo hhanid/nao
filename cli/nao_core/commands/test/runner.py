@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -441,3 +442,4 @@ def test(
         UI.success(f"All {total} test(s) passed")
     else:
         UI.print(f"[green]{passed} passed[/green], [red]{failed} failed[/red], {total} total")
+        sys.exit(1)
