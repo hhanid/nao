@@ -292,8 +292,29 @@
     {
       "idx": 41,
       "version": "7",
-      "when": 1779211804487,
-      "tag": "0041_add_display_settings",
+      "when": 1779201882027,
+      "tag": "0041_automations",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1779270688350,
+      "tag": "0042_mcp_query_data_and_chart_embed",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1779278958357,
+      "tag": "0043_custom-models-id",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1779815389972,
+      "tag": "0044_activity",
       "breakpoints": true
     }
   ]

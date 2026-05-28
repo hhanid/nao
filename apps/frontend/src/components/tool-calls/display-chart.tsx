@@ -1,6 +1,5 @@
 import { memo, useCallback, useMemo, useState } from 'react';
-import { buildChart, labelize } from '@nao/shared';
-import { buildChartTag } from '@nao/shared/story-segments';
+import { buildChart, buildStoryChartBlock, labelize } from '@nao/shared';
 import { Download, FilePlus, Pencil } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useOptionalAgentContext } from '../../contexts/agent.provider';
@@ -167,7 +166,7 @@ export const DisplayChartToolCall = ({
 			return;
 		}
 
-		const chartBlock = buildChartTag(config);
+		const chartBlock = buildStoryChartBlock(config);
 		const newCode = latest.code.trimEnd() + '\n\n' + chartBlock;
 
 		addToStoryMutation.mutate({

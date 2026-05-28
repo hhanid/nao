@@ -1,4 +1,4 @@
-import { defaultColorFor, formatCompactNumber, labelize } from '@nao/shared';
+import { DEFAULT_COLORS, defaultColorFor, formatCompactNumber, labelize } from '@nao/shared';
 import {
 	type DateFormatSettings,
 	DEFAULT_DATE_FORMAT_SETTINGS,
@@ -374,9 +374,7 @@ function renderTooltipScript(datePattern: string): string {
 	return TOOLTIP_SCRIPT_TEMPLATE.replace('__DATE_PATTERN__', escapedPattern);
 }
 
-const TOOLTIP_SCRIPT_TEMPLATE = `
-(function(){
-	var PIE_COLORS=['#104e64','#f54900','#009689','#ffb900','#fe9a00'];
+	var PIE_COLORS=${JSON.stringify(DEFAULT_COLORS)};
 	var DATE_PATTERN=__DATE_PATTERN__;
 	var MONTHS_LONG=['January','February','March','April','May','June','July','August','September','October','November','December'];
 	var MONTHS_SHORT=MONTHS_LONG.map(function(m){return m.slice(0,3)});
@@ -479,13 +477,14 @@ const TOOLTIP_SCRIPT_TEMPLATE = `
 			var html='<div class="nao-tooltip-label">'+(isPie?labelize(cfg.series[0]&&(cfg.series[0].label||cfg.series[0].data_key)||''):labelize(label!=null?label:''))+'</div>';
 			html+='<div class="nao-tooltip-rows">';
 			var numericValues=[];
-			cfg.series.forEach(function(s){
+			cfg.series.forEach(function(s, si){
 				var color;
 				if(isPie){
 					color=pieColorMap[String(label!=null?label:'')]||PIE_COLORS[0];
 				}else{
-					color=s.color||'#2563eb';
-					if(color.startsWith('var('))color='#2563eb';
+					var fb=PIE_COLORS[si % PIE_COLORS.length];
+					color=s.color||fb;
+					if(!color||String(color).startsWith('var('))color=fb;
 				}
 				var val=row[s.data_key];
 				if(typeof val==='number')numericValues.push(val);
